@@ -1,0 +1,46 @@
+@(rates: Rates)(implicit messagesProvider: play.api.i18n.MessagesProvider)
+
+@showCurrencyRates(ratePairs: CurrencyPairRates) = {
+   <td>@ratePairs.toUsd.getOrElse("NA")</td>
+   <td>@ratePairs.toGbp.getOrElse("NA")</td>
+   <td>@ratePairs.toEur.getOrElse("NA")</td>
+   <td>@ratePairs.toBtc.getOrElse("NA")</td>
+}
+
+@nautical("rates") {
+
+   <table border="1">
+      <thead>
+         <tr>
+            <th rowspan="2" colspan="2">Currency</th>
+            <th colspan="4">Rate</th>
+         </tr>
+         <tr>
+            <th>USD</th>
+            <th>GBP</th>
+            <th>EUR</th>
+            <th>BTC</th>
+         </tr>
+      </thead>
+      <tbody>
+
+         @for(rate <- rates.cryptoRates){
+            <tr>
+               <td>@rate.currency.value</td>
+               <td>@rate.currency</td>
+               @showCurrencyRates(rate.rates)
+            </tr>
+         }
+
+         @for(rate <- rates.fiatRates){
+            <tr>
+               <td>@rate.currency.value</td>
+               <td>@rate.currency</td>
+               @showCurrencyRates(rate.rates)
+            </tr>
+         }
+
+      </tbody>
+   </table>
+
+}

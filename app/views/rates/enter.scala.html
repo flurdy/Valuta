@@ -1,0 +1,69 @@
+@(currencies: Currencies, error: Option[String] = None)(implicit request: RequestHeader, messagesProvider: play.api.i18n.MessagesProvider)
+
+@import helper._
+
+@nautical("Enter currency rate") {
+   <h2>Enter currency rate</h2>
+
+   <h3>Crypto/Crypto</h3>
+
+   @form(action=routes.RateController.enterCryptoPerCryptoRate){
+      @helper.CSRF.formField
+      <select class="" size="5" name="dividen" required>
+         @for(currency <- currencies.cryptoCurrencies){
+            <option>@currency</option>
+         }
+      </select>
+      /
+      <select class="" size="5" name="divisor" required>
+         @for(currency <- currencies.cryptoCurrencies){
+            <option @if(currency == CryptoCurrency.BTC){
+                  selected
+               }>@currency</option>
+         }
+      </select>
+      <input type="number" name="rate" required />
+      <button type="submit">enter</button>
+   }
+
+   <h3>Crypto/Fiat</h3>
+
+   @form(action=routes.RateController.enterCryptoPerFiatRate){
+      @helper.CSRF.formField
+      <select class="" size="5" name="dividen" required>
+         @for(currency <- currencies.cryptoCurrencies){
+            <option>@currency</option>
+         }
+      </select>
+      /
+      <select class="" size="5" name="divisor" required>
+         @for(currency <- currencies.fiatCurrencies){
+            <option @if(currency == FiatCurrency.USD){
+                  selected
+               }>@currency</option>
+         }
+      </select>
+      <input type="number" name="rate" required />
+      <button type="submit">enter</button>
+   }
+
+   <h3>Fiat/Fiat</h3>
+
+   @form(action=routes.RateController.enterFiatPerFiatRate){
+      @helper.CSRF.formField
+      <select class="" size="5" name="dividen"> required
+         @for(currency <- currencies.fiatCurrencies){
+            <option>@currency</option>
+         }
+      </select>
+      /
+      <select class="" size="5" name="divisor" required>
+         @for(currency <- currencies.fiatCurrencies){
+            <option>@currency</option>
+         }
+      </select>
+      <input type="number" name="rate" required />
+      <button type="submit">enter</button>
+   }
+
+}
