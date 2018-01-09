@@ -1,78 +1,156 @@
 package repositories
 
-import com.google.inject.ImplementedBy
+import com.google.inject.{AbstractModule, ImplementedBy}
 import com.redis._
+import java.time.{LocalDateTime, ZoneOffset}
+import java.time.format.DateTimeFormatter
 import javax.inject.{Inject, Singleton}
+import play.api.inject.ApplicationLifecycle
 import scala.concurrent.{ExecutionContext, Future}
+import com.flurdy.sander.primitives._
 import models._
 import CryptoCurrency._
 import FiatCurrency._
 
 
+@ImplementedBy(classOf[DefaultRedisProvider])
+trait RedisProvider {
+
+   def pool: RedisClientPool
+
+}
+
+@Singleton
+class DefaultRedisProvider @Inject() (val databaseConfig: DatabaseConfiguration) extends RedisProvider {
+
+   lazy val pool = new RedisClientPool(databaseConfig.redisHost, databaseConfig.redisPort)
+
+}
+
+
+trait CryptoKeys {
+
+   def rateDatesKey(dividen: String, divisor: String) =
+      s"rates:pair:${dividen}-${divisor}:dates"
+
+   def rateKey(dividen: String, divisor: String, date: String) =
+       s"rates:pair:${dividen}-${divisor}.${date}:rate"
+
+}
+
+
 @ImplementedBy(classOf[DefaultRateRepository])
-trait RateWriteRepository extends WithLogger {
+trait RateWriteRepository extends CryptoKeys with WithLogger {
 
-   def redisClients: RedisClientPool
+   def redisProvider: RedisProvider
 
-   def saveCryptoPerCryptoRate(rate: CryptoPerCryptoRate): Future[Unit] =
-      Future.failed(new RuntimeException("!!!"))
+   val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
 
-   def saveCryptoPerFiatRate(rate: CryptoPerFiatRate)(implicit ec: ExecutionContext): Future[Unit] = {
-      redisClients.withClient { client =>
-
-         val date = "1970-01-01"
-
-         // todo date list
+   private def saveRate(dividen: String, divisor: String, rate: BigDecimal)(implicit ec: ExecutionContext): Future[Unit] =
+      redisProvider.pool.withClient { client =>
+         val date = LocalDateTime.now
          Future {
-
-            // if(!client.sismember("rates.pairs",s"${rate.dividen.value}-${rate.divisor.value}"))
-               client.sadd("rates.pairs",s"${rate.dividen.value}-${rate.divisor.value}")
-            // if(!client.sismember(s"rates.pair.${rate.dividen.value}-${rate.divisor.value}.dates", date))
-               client.sadd(s"rates.pair.${rate.dividen.value}-${rate.divisor.value}.dates", date)
-            client.set(s"rates.pair.${rate.dividen.value}-${rate.divisor.value}.${date}.rate", rate.rate)
+            try {
+               client.sadd("rates:pairs",s"${dividen}-${divisor}")
+               client.zadd(rateDatesKey(dividen, divisor), date.toEpochSecond(ZoneOffset.UTC), dateFormatter.format(date))
+               client.set(rateKey(dividen, divisor, date.toString), rate)
+            } catch {
+               case e: Exception =>
+                  println(e)
+                  throw e
+               case e: Throwable =>
+                  println(e)
+                  throw new RuntimeException("whatevs")
+            }
          }
-         // Future.failed(new RuntimeException("!!!"))
       }
-   }
 
-   def saveFiatPerFiatRate(rate: FiatPerFiatRate): Future[Unit] =
-      Future.failed(new RuntimeException("!!!"))
+   def saveCryptoPerCryptoRate(rate: CryptoPerCryptoRate)(implicit ec: ExecutionContext) =
+      saveRate(rate.dividen.value, rate.divisor.value, rate.rate)
+
+   def saveCryptoPerFiatRate(rate: CryptoPerFiatRate)(implicit ec: ExecutionContext) =
+      saveRate(rate.dividen.value, rate.divisor.value, rate.rate)
+
+   def saveFiatPerFiatRate(rate: FiatPerFiatRate)(implicit ec: ExecutionContext) =
+      saveRate(rate.dividen.value, rate.divisor.value, rate.rate)
+
 }
 
 @ImplementedBy(classOf[DefaultRateRepository])
-trait RateReadRepository extends WithLogger {
+trait RateReadRepository extends CryptoKeys with WithLogger {
+
+   def redisProvider: RedisProvider
 
    def findCryptoCurrencies()(implicit ec: ExecutionContext): Future[List[CryptoCurrency]] =
       Future {
-         List(
-            BTC, BCH, ETH, LTC, XRP, ADA, IOTA
-         )
+         List( BTC, BCH, ETH, LTC, XRP, ADA, IOTA )
       }
 
-   def findCurrencyPairRate(currency: Currency, pairCurrency: Currency)(implicit ec: ExecutionContext): Future[Option[BigDecimal]] =
-      currency match {
-         case c: CryptoCurrency => findCryptoPairRate(c, pairCurrency)
-         case c: FiatCurrency => findFiatPairRate(c, pairCurrency)
+   def findCurrencyPairRate(dividen: Currency, divisor: Currency)(implicit ec: ExecutionContext): Future[Option[BigDecimal]] =
+      (dividen, divisor) match {
+         case (c: CryptoCurrency, p: CryptoCurrency) => findCryptoPerCryptoPairRate(c, p)
+         case (c: CryptoCurrency, p: FiatCurrency)   => findCryptoPerFiatPairRate(c, p)
+         case (c: FiatCurrency,   p: FiatCurrency)   => findFiatPerFiatPairRate(c, p)
+         case _ =>
+            logger.debug(s"Fiat/Crypto not possible: $dividen / $divisor")
+            Future.successful(None)
       }
 
-
-   def findCryptoPairRate(currency: CryptoCurrency, pairCurrency: Currency)(implicit ec: ExecutionContext): Future[Option[BigDecimal]] =
-      Future {
-         logger.info(s"Looking for stored crypto $currency")
-         None
+   private def findCryptoPerCryptoPairRate(dividen: CryptoCurrency, divisor: CryptoCurrency)(implicit ec: ExecutionContext): Future[Option[BigDecimal]] =
+      redisProvider.pool.withClient { client =>
+         logger.info(s"Looking for stored crypto $dividen/$divisor")
+         Future {
+            client.sismember("rates:pairs",s"${dividen.value}-${divisor.value}")
+                  .some
+                  .flatMap { _ =>
+                     client.zrange(rateDatesKey(dividen.value, divisor.value), 0, 0, RedisClient.DESC)
+                  }
+                  .flatMap ( _.headOption )
+                  .flatMap { date =>
+                     client.get(rateKey(dividen.value, divisor.value, date))
+                           .map(BigDecimal(_))
+                  }
+         }
       }
 
-   def findFiatPairRate(currency: FiatCurrency, pairCurrency: Currency)(implicit ec: ExecutionContext): Future[Option[BigDecimal]] =
-      Future {
-         logger.info(s"Looking for stored fiat $currency")
-         None
+   private def findCryptoPerFiatPairRate(dividen: CryptoCurrency, divisor: FiatCurrency)(implicit ec: ExecutionContext): Future[Option[BigDecimal]] =
+      redisProvider.pool.withClient { client =>
+         logger.info(s"Looking for stored crypto $dividen/$divisor")
+         Future {
+            client.sismember("rates:pairs",s"${dividen.value}-${divisor.value}")
+                  .some
+                  .flatMap { _ =>
+                     client.zrange(rateDatesKey(dividen.value, divisor.value), 0, 0, RedisClient.DESC)
+                  }
+                  .flatMap ( _.headOption )
+                  .flatMap { date =>
+                     client.get(rateKey(dividen.value, divisor.value, date))
+                           .map(BigDecimal(_))
+                  }
+         }
+      }
+
+   private def findFiatPerFiatPairRate(dividen: FiatCurrency, divisor: FiatCurrency)(implicit ec: ExecutionContext): Future[Option[BigDecimal]] =
+      redisProvider.pool.withClient { client =>
+         logger.info(s"Looking for stored fiat $dividen")
+         Future {
+            client.sismember("rates:pairs",s"${dividen.value}-${divisor.value}")
+                  .some
+                  .flatMap { _ =>
+                     client.zrange(rateDatesKey(dividen.value, divisor.value), 0, 0, RedisClient.DESC)
+                  }
+                  .flatMap ( _.headOption )
+                  .flatMap { date =>
+                     client.get(rateKey(dividen.value, divisor.value, date))
+                           .map(BigDecimal(_))
+                  }
+         }
       }
 
 }
 
+@ImplementedBy(classOf[DefaultRateRepository])
 trait RateRepository extends RateWriteRepository with RateReadRepository
 
 @Singleton
-class DefaultRateRepository @Inject() (val databaseConfig: DatabaseConfiguration) extends RateRepository {
-   val redisClients = new RedisClientPool(databaseConfig.redisHost, databaseConfig.redisPort)
-}
+class DefaultRateRepository @Inject() (val redisProvider: RedisProvider) extends RateRepository

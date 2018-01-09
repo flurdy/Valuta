@@ -60,6 +60,7 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
 
    def list() = Action.async { implicit request =>
       rateService.findRates.map{ rates =>
+         logger.debug("Show rates")
          Ok(views.html.rates.list(rates))
       }
    }
@@ -115,6 +116,12 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
             }
          }
       )
+   }
+
+   def showCurrencyRates(currency: String) = Action { implicit request =>
+
+      Ok(views.html.rates.currency(FiatCurrency.USD))
+
    }
 
 }

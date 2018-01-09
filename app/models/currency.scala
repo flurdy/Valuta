@@ -15,19 +15,20 @@ sealed trait Currency extends WithLogger {
    }
 
    def findPairRate[A <: Currency](pairCurrency: Currency)
-         (implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Option[BigDecimal]] = {
+         (implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Option[BigDecimal]] =
       rateRepository.findCurrencyPairRate(this, pairCurrency).flatMap {
          case rate @ Some(_) => Future.successful(rate)
          case _ => this.findCurrentRate(pairCurrency)
       }
-   }
 
    def findPairRates[A <: Currency](pairCurrencies: List[Currency])
          (implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[CurrencyPairRates] =
       Future.sequence {
-         pairCurrencies.map { pairCurrency =>
-            this.findPairRate[A](pairCurrency) .map ( (pairCurrency, _) )
-         }
+         pairCurrencies
+            .filter(_ != this)
+            .map { pairCurrency =>
+               this.findPairRate[A](pairCurrency) .map ( (pairCurrency, _) )
+            }
       }
       .map( _.filter( v => v._2.isDefined) )
       .map(_.toMap)

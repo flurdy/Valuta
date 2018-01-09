@@ -20,7 +20,7 @@ libraryDependencies ++= {
       "com.flurdy" % "sander-core_2.11" % "0.2.0",
       "com.beachape" %% "enumeratum" % enumeratumVersion,
       "com.beachape" %% "enumeratum-play" % enumeratumVersion,
-      "com.github.kstyrc" % "embedded-redis" % "0.6",
+      "com.github.kstyrc" % "embedded-redis" % "0.6" % Test,
       "net.debasishg" %% "redisclient" % "3.4",
       "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test,
       "com.flurdy" %% "scalasoup" % "0.1.0" % Test,

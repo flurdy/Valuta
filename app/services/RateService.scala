@@ -47,13 +47,13 @@ trait RateService {
    def findCurrencies(): Currencies =
       Currencies(CryptoCurrency.values, FiatCurrency.values)
 
-   def enterNewRate(rate: CryptoPerCryptoRate): Future[Unit] =
+   def enterNewRate(rate: CryptoPerCryptoRate)(implicit ec: ExecutionContext): Future[Unit] =
       rateWriteRepository.saveCryptoPerCryptoRate(rate)
 
    def enterNewRate(rate: CryptoPerFiatRate)(implicit ec: ExecutionContext): Future[Unit] =
       rateWriteRepository.saveCryptoPerFiatRate(rate)
 
-   def enterNewRate(rate: FiatPerFiatRate): Future[Unit] =
+   def enterNewRate(rate: FiatPerFiatRate)(implicit ec: ExecutionContext): Future[Unit] =
       rateWriteRepository.saveFiatPerFiatRate(rate)
 }
 

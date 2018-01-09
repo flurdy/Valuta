@@ -10,6 +10,7 @@ GET     /rates/enter                controllers.RateController.showEnter
 POST    /rate/crypto/crypto         controllers.RateController.enterCryptoPerCryptoRate
 POST    /rate/crypto/fiat           controllers.RateController.enterCryptoPerFiatRate
 POST    /rate/fiat/fiat             controllers.RateController.enterFiatPerFiatRate
+GET     /currency/rate/:currency    controllers.RateController.showCurrencyRates(currency)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)

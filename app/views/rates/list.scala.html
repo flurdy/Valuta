@@ -1,10 +1,10 @@
 @(rates: Rates)(implicit messagesProvider: play.api.i18n.MessagesProvider)
 
 @showCurrencyRates(ratePairs: CurrencyPairRates) = {
-   <td>@ratePairs.toUsd.getOrElse("NA")</td>
-   <td>@ratePairs.toGbp.getOrElse("NA")</td>
-   <td>@ratePairs.toEur.getOrElse("NA")</td>
-   <td>@ratePairs.toBtc.getOrElse("NA")</td>
+   <td>@ratePairs.toUsd.getOrElse("")</td>
+   <td>@ratePairs.toGbp.getOrElse("")</td>
+   <td>@ratePairs.toEur.getOrElse("")</td>
+   <td>@ratePairs.toBtc.getOrElse("")</td>
 }
 
 @nautical("rates") {
@@ -12,7 +12,7 @@
    <table border="1">
       <thead>
          <tr>
-            <th rowspan="2" colspan="2">Currency</th>
+            <th rowspan="2" colspan="1">Currency</th>
             <th colspan="4">Rate</th>
          </tr>
          <tr>
@@ -26,16 +26,24 @@
 
          @for(rate <- rates.cryptoRates){
             <tr>
-               <td>@rate.currency.value</td>
-               <td>@rate.currency</td>
+               <td>
+                  <a href="@routes.RateController.showCurrencyRates(rate.currency.value)">
+                     @rate.currency.value
+                  </a>
+               </td>
+               <!-- <td>@rate.currency</td> -->
                @showCurrencyRates(rate.rates)
             </tr>
          }
 
          @for(rate <- rates.fiatRates){
             <tr>
-               <td>@rate.currency.value</td>
-               <td>@rate.currency</td>
+               <td>
+                  <a href="@routes.RateController.showCurrencyRates(rate.currency.value)">
+                     @rate.currency.value
+                  </a>
+               </td>
+               <!-- <td>@rate.currency</td> -->
                @showCurrencyRates(rate.rates)
             </tr>
          }
