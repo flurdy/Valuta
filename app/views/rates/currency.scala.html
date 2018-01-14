@@ -1,21 +1,33 @@
-@(currency: Currency)(implicit messagesProvider: play.api.i18n.MessagesProvider)
+@(currency: Currency, dateRates: models.DateRates, divisors: List[Currency])(implicit messagesProvider: play.api.i18n.MessagesProvider)
 
 @nautical(""){
 
 
-   <h2>@currency</h2>
+   <h3>@currency</h3>
 
    <table border="1">
       <tr>
          <th>Date</th>
-         <th>USD</th>
-         <th>BTC</th>
+         @for(divisor <- divisors){
+            <th>@divisor</th>
+         }
       </tr>
-      <tr>
-         <td></td>
-         <td></td>
-         <td></td>
-      </tr>
+      @for(date <- dateRates.rates.keys){
+         <tr>
+            <td>@date</td>
+            @for(divisor <- divisors){
+               <td>
+                  @for(rateDivisor <- dateRates.rates(date).rates.keys){
+                     @if(divisor == rateDivisor){
+                        @dateRates.rates(date).rates.get(divisor).map { rate =>
+                           @rate.rate
+                        }
+                     }
+                  }
+               </td>
+            }
+         </tr>
+      }
    </table>
 
 }

@@ -1,5 +1,6 @@
 package controllers
 
+import java.time.LocalDateTime
 import javax.inject.{Inject, Singleton}
 import play.api._
 import play.api.data._
@@ -9,10 +10,7 @@ import play.api.mvc._
 import scala.concurrent.{ExecutionContext, Future}
 import models._
 import services._
-// import repositories._
-// import connector._
-import CryptoCurrency._
-import FiatCurrency._
+import repositories._
 
 
 @Singleton
@@ -26,51 +24,39 @@ extends AbstractController(cc) with I18nSupport {
 }
 
 trait RateHelper {
-   val cryptoPerCryptoRateForm = Form(
+
+   def currencyRateForm = Form(
       mapping(
-         // "csrfToken" -> ignored(""),
-         "dividen" -> CryptoCurrency.formField,
-         "divisor" -> CryptoCurrency.formField,
-         "rate" -> bigDecimal
-      )(CryptoPerCryptoRate.apply)(CryptoPerCryptoRate.unapply)
+         "dividen" -> Currency.formField,
+         "divisor" -> Currency.formField,
+         "date"    -> ignored(LocalDateTime.now),
+         "rate"    -> bigDecimal,
+         "source"  -> optional(RateSource.formField)
+      )(CurrencyRate.apply)(CurrencyRate.unapply)
    )
 
-   val cryptoPerFiatRateForm = Form(
-      mapping(
-         // "csrfToken" -> ignored(""),
-         "dividen" -> CryptoCurrency.formField,
-         "divisor" -> FiatCurrency.formField,
-         "rate" -> bigDecimal
-      )(CryptoPerFiatRate.apply)(CryptoPerFiatRate.unapply)
-   )
-
-   val fiatPerFiatRateForm = Form(
-      mapping(
-         // "csrfToken" -> ignored(""),
-         "dividen" -> FiatCurrency.formField,
-         "divisor" -> FiatCurrency.formField,
-         "rate" -> bigDecimal
-      )(FiatPerFiatRate.apply)(FiatPerFiatRate.unapply)
-   )
 }
 
 @Singleton
-class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext)
+class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository)
 extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger {
 
    def list() = Action.async { implicit request =>
-      rateService.findRates.map{ rates =>
+      for {
+         rates    <- rateService.findRates()
+         divisors <- rateService.findDivisors()
+      } yield {
          logger.debug("Show rates")
-         Ok(views.html.rates.list(rates))
+         Ok(views.html.rates.list(rates, divisors))
       }
    }
 
-   def showEnter() = Action { implicit request =>
+   def showEnterRates() = Action { implicit request =>
       Ok(views.html.rates.enter(rateService.findCurrencies()))
    }
 
-   def enterCryptoPerCryptoRate = Action.async { implicit request =>
-      cryptoPerCryptoRateForm.bindFromRequest.fold(
+   def enterRate = Action.async { implicit request =>
+      currencyRateForm.bindFromRequest.fold(
          errors => {
             Future.successful{
                BadRequest{
@@ -79,49 +65,30 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
                }
             }
          }, rateEntry => {
-            rateService.enterNewRate(rateEntry).map { _ =>
-               Ok("Rate entered")
+            rateEntry.enterNewRate().flatMap { _ =>
+               rateEntry.inverse.fold{
+                  Future.successful(())
+               }{
+                  _.enterNewRate()
+               }.map { _ =>
+                  Ok("Rate entered")
+               }
             }
          }
       )
    }
 
-   def enterCryptoPerFiatRate = Action.async { implicit request =>
-      cryptoPerFiatRateForm.bindFromRequest.fold(
-         errors => {
-            Future.successful{
-               BadRequest(
-                  views.html.rates.enter(rateService.findCurrencies(),
-                  Some("Not a valid crypto currency")))
+   def showCurrencyRates(currencyCode: String) = Action.async { implicit request =>
+      Currency.withNameOption(currencyCode) match {
+         case Some(currency) =>
+            currency.findDivisors() flatMap { divisors =>
+               currency.findRatesByDates() map { dateRates =>
+                  logger.debug("date rates " + dateRates)
+                  Ok(views.html.rates.currency(currency, dateRates, divisors))
+               }
             }
-         }, rateEntry => {
-            rateService.enterNewRate(rateEntry).map { _ =>
-               Ok("Rate entered")
-            }
-         }
-      )
-   }
-
-   def enterFiatPerFiatRate = Action.async { implicit request =>
-      fiatPerFiatRateForm.bindFromRequest.fold(
-         errors => {
-            Future.successful{
-               BadRequest(
-                  views.html.rates.enter(rateService.findCurrencies(),
-                  Some("Not a valid crypto currency")))
-            }
-         }, rateEntry => {
-            rateService.enterNewRate(rateEntry).map { _ =>
-               Ok("Rate entered")
-            }
-         }
-      )
-   }
-
-   def showCurrencyRates(currency: String) = Action { implicit request =>
-
-      Ok(views.html.rates.currency(FiatCurrency.USD))
-
+         case _ => Future.successful(NotFound("Currency not found"))
+      }
    }
 
 }

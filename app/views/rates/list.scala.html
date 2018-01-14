@@ -1,11 +1,4 @@
-@(rates: Rates)(implicit messagesProvider: play.api.i18n.MessagesProvider)
-
-@showCurrencyRates(ratePairs: CurrencyPairRates) = {
-   <td>@ratePairs.toUsd.getOrElse("")</td>
-   <td>@ratePairs.toGbp.getOrElse("")</td>
-   <td>@ratePairs.toEur.getOrElse("")</td>
-   <td>@ratePairs.toBtc.getOrElse("")</td>
-}
+@(rates: Rates, divisors: List[Currency])(implicit messagesProvider: play.api.i18n.MessagesProvider)
 
 @nautical("rates") {
 
@@ -13,41 +6,34 @@
       <thead>
          <tr>
             <th rowspan="2" colspan="1">Currency</th>
-            <th colspan="4">Rate</th>
+            <th colspan="@divisors.length">Rate</th>
          </tr>
          <tr>
-            <th>USD</th>
-            <th>GBP</th>
-            <th>EUR</th>
-            <th>BTC</th>
+            @for(divisor <- divisors){
+               <th>@divisor</th>
+            }
          </tr>
       </thead>
       <tbody>
-
-         @for(rate <- rates.cryptoRates){
+         @for((currency, currencyRates) <- rates.rates){
             <tr>
                <td>
-                  <a href="@routes.RateController.showCurrencyRates(rate.currency.value)">
-                     @rate.currency.value
+                  <a href="@routes.RateController.showCurrencyRates(currency.entryName)">
+                     @currency
                   </a>
                </td>
-               <!-- <td>@rate.currency</td> -->
-               @showCurrencyRates(rate.rates)
+               @for(divisor <- divisors){
+                  <td>
+                     @for((date,pairRate) <- currencyRates.rates){
+                        @if(divisor == pairRate.divisor){
+                           @pairRate.rate
+
+                        }
+                     }
+                  </td>
+               }
             </tr>
          }
-
-         @for(rate <- rates.fiatRates){
-            <tr>
-               <td>
-                  <a href="@routes.RateController.showCurrencyRates(rate.currency.value)">
-                     @rate.currency.value
-                  </a>
-               </td>
-               <!-- <td>@rate.currency</td> -->
-               @showCurrencyRates(rate.rates)
-            </tr>
-         }
-
       </tbody>
    </table>
 

@@ -1,33 +1,58 @@
 package models
 
-import CryptoCurrency._
-import FiatCurrency._
+import enumeratum._
+import enumeratum.values._
+import enumeratum.EnumEntry._
+import java.time.{LocalDateTime, ZoneOffset}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.math.BigDecimal.RoundingMode
+import Currency._
+import repositories._
 
 
-case class CurrencyPairRates(
-   toUsd: Option[BigDecimal],
-   toGbp: Option[BigDecimal],
-   toEur: Option[BigDecimal],
-   toBtc: Option[BigDecimal]
-){
-   def this(lookup: Map[Currency, Option[BigDecimal]]) =
-      this(
-         toUsd = lookup.get(USD).flatten,
-         toGbp = lookup.get(GBP).flatten,
-         toEur = lookup.get(EUR).flatten,
-         toBtc = lookup.get(BTC).flatten
-      )
+sealed trait RateSource extends EnumEntry
+case object RateSource extends PlayEnum[RateSource]{
+   val values = findValues
+   case object Bitfinex extends RateSource
+   case object Poloniex extends RateSource
+   case object Gemini   extends RateSource
+   case object Gdax     extends RateSource
+   case object Bittrex  extends RateSource
+   case object Bitstamp extends RateSource
+   case object Kraken   extends RateSource
+   case object Binance  extends RateSource
+   case object CoinmarketCap extends RateSource
+   case object CryptoWatch   extends RateSource
+   case object Calculated    extends RateSource
+   case object None     extends RateSource
 }
 
-case class CurrencyRates[A <: Currency](
-   currency: A, rates: CurrencyPairRates)
+case class CurrencyRate(dividen: Currency, divisor: Currency, date: LocalDateTime, rate: BigDecimal, source: Option[RateSource] = None){
 
-case class Rates(
-   cryptoRates: List[CurrencyRates[CryptoCurrency]],
-   fiatRates: List[CurrencyRates[FiatCurrency]])
+   val epochSecond = date.toEpochSecond(ZoneOffset.UTC)
 
-case class CryptoPerCryptoRate(dividen: CryptoCurrency, divisor: CryptoCurrency, rate: BigDecimal)
+   def enterNewRate()(implicit ec: ExecutionContext, rateWriteRepository: RateWriteRepository): Future[Unit] =
+      rateWriteRepository.saveCurrencyRate(this)
 
-case class CryptoPerFiatRate(dividen: CryptoCurrency, divisor: FiatCurrency, rate: BigDecimal)
+   def inverse =
+      if(dividen.isDivisor)
+         Some(this.copy( dividen = divisor, divisor = dividen,
+                           rate = inverseRate))
+      else None
 
-case class FiatPerFiatRate(dividen: FiatCurrency, divisor: FiatCurrency, rate: BigDecimal)
+   def inverseRate = {
+      val scale =
+         if(rate.precision > rate.scale)
+            rate.precision
+         else rate.scale
+      (BigDecimal("1") / rate).setScale(scale, RoundingMode.HALF_UP)
+   }
+}
+
+case class CurrencyRates(dividen: Currency, rates: List[(LocalDateTime,CurrencyRate)])
+
+case class DivisorRates(rates: Map[Currency,CurrencyRate])
+
+case class DateRates(rates: Map[LocalDateTime,DivisorRates])
+
+case class Rates(rates: Map[Currency,CurrencyRates])

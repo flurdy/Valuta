@@ -1,6 +1,7 @@
 package repositories
 
-import com.redis._
+import akka.actor.ActorSystem
+import java.time.LocalDateTime
 import org.scalatest._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
@@ -34,11 +35,8 @@ trait MockRedisServer {
 }
 
 
-
 class RateRepositoryComponentSpec extends PlaySpec with ScalaFutures with IntegrationPatience
 with BeforeAndAfterAll with MockRedisServer {
-
-   def given = afterWord("given")
 
    override def beforeAll() {
       startRedis()
@@ -55,75 +53,65 @@ with BeforeAndAfterAll with MockRedisServer {
          val rootConfig = Configuration.from(redisConfiguration)
       }
 
-      val redisProvider = new DefaultRedisProvider(databaseConfig = dbConfig)
+      val akkaSystem = ActorSystem("MySpec")
+      val redisProvider = new DefaultRedisProvider(databaseConfig = dbConfig)(akkaSystem)
       val rateRepository = new DefaultRateRepository(redisProvider = redisProvider)
 
-      def findLatestRate(currency: Currency, pairCurrency: Currency): Future[Option[BigDecimal]] =
-         rateRepository.findCurrencyPairRate(currency, pairCurrency)
+      def findLatestRate(dividen: Currency, divisor: Currency) =
+         rateRepository.findCurrencyRate(dividen, divisor)
 
    }
 
    "RateRepository" should {
-      "save CryptoPerCryptoRate" in new Setup {
-         val rate = CryptoPerCryptoRate(
-            CryptoCurrency.XRP, CryptoCurrency.BTC, BigDecimal("0.0024"))
+      "save CurrencyRate" in new Setup {
 
-         whenReady(findLatestRate(CryptoCurrency.XRP, CryptoCurrency.BTC)){ rateBefore =>
-            whenReady(rateRepository.saveCryptoPerCryptoRate(rate)){ _ =>
-               whenReady(findLatestRate(CryptoCurrency.XRP, CryptoCurrency.BTC)){ rateAfter =>
+         val dividen = Currency.BTC
+         val divisor = Currency.USD
+         val date = LocalDateTime.now.minusMonths(5)
+         val rate = BigDecimal("24201.12")
+         val source = Some(RateSource.Bitstamp)
+         val currencyRate = CurrencyRate(dividen, divisor, date, rate, source)
 
+         val flow =
+            for {
+               rateBefore <- findLatestRate(Currency.BTC, Currency.USD)
+               _          <- rateRepository.saveCurrencyRate(currencyRate)
+               rateAfter  <- findLatestRate(Currency.BTC, Currency.USD)
+            } yield (rateBefore, rateAfter)
 
-                  assert(rateBefore == None)
-                  assert(rateAfter == Some(BigDecimal("0.0024")))
-               }
-            }
+         whenReady(flow){ case (rateBefore, rateAfter) =>
+
+            assert(rateBefore == None)
+            assert(rateAfter.map(_.rate) == Some(BigDecimal("24201.12")))
          }
       }
-      "save CryptoPerFiatRate" in new Setup {
-         val rate = CryptoPerFiatRate(
-            CryptoCurrency.BTC, FiatCurrency.USD, BigDecimal("14500"))
 
-         whenReady(findLatestRate(CryptoCurrency.BTC, FiatCurrency.USD)){ rateBefore =>
-            whenReady(rateRepository.saveCryptoPerFiatRate(rate)){ _ =>
-               whenReady(findLatestRate(CryptoCurrency.BTC, FiatCurrency.USD)){ rateAfter =>
+      "save multiple CurrencyRates" in new Setup {
 
-                  assert(rateBefore == None)
-                  assert(rateAfter == Some(BigDecimal("14500")))
-               }
-            }
+         val dividen = Currency.ETH
+         val divisor = Currency.USD
+         val source = Some(RateSource.Bitstamp)
+         val date1 = LocalDateTime.now.minusMonths(2)
+         val date2 = LocalDateTime.now.minusMonths(1)
+         val rate1 = BigDecimal("14201.12")
+         val rate2 = BigDecimal("42101.12")
+         val currencyRate1 = CurrencyRate(dividen, divisor, date1, rate1, source)
+         val currencyRate2 = CurrencyRate(dividen, divisor, date2, rate2, source)
+
+         val flow =
+            for {
+               _          <- rateRepository.saveCurrencyRate(currencyRate1)
+               rateDuring <- findLatestRate(Currency.ETH, Currency.USD)
+               _          <- rateRepository.saveCurrencyRate(currencyRate2)
+               rateAfter  <- findLatestRate(Currency.ETH, Currency.USD)
+            } yield (rateDuring, rateAfter)
+
+         whenReady(flow){ case (rateDuring, rateAfter) =>
+
+            assert(rateDuring.map(_.rate) == Some(BigDecimal("14201.12")))
+            assert(rateAfter.map(_.rate)  == Some(BigDecimal("42101.12")))
          }
-      }
-      "save FiatPerFiatRate" in new Setup {
-         val rate = FiatPerFiatRate(
-            FiatCurrency.USD, FiatCurrency.GBP, BigDecimal("14500"))
 
-         whenReady(findLatestRate(FiatCurrency.USD, FiatCurrency.GBP)){ rateBefore =>
-            whenReady(rateRepository.saveFiatPerFiatRate(rate)){ _ =>
-               whenReady(findLatestRate(FiatCurrency.USD, FiatCurrency.GBP)){ rateAfter =>
-
-                  assert(rateBefore == None)
-                  assert(rateAfter == Some(BigDecimal("14500")))
-               }
-            }
-         }
-      }
-      "save multiple CryptoPerFiat rates" in new Setup {
-         val rate1 = CryptoPerFiatRate(
-            CryptoCurrency.ETH, FiatCurrency.USD, BigDecimal("955"))
-         val rate2 = CryptoPerFiatRate(
-            CryptoCurrency.ETH, FiatCurrency.USD, BigDecimal("966.23"))
-
-         whenReady(rateRepository.saveCryptoPerFiatRate(rate1)){ _ =>
-            whenReady(findLatestRate(CryptoCurrency.ETH, FiatCurrency.USD)){ rateAfter1 =>
-               whenReady(rateRepository.saveCryptoPerFiatRate(rate2)){ _ =>
-                  whenReady(findLatestRate(CryptoCurrency.ETH, FiatCurrency.USD)){ rateAfter2 =>
-
-                     assert(rateAfter1 == Some(BigDecimal("955")))
-                     assert(rateAfter2 == Some(BigDecimal("966.23")))
-                  }
-               }
-            }
-         }
       }
    }
 

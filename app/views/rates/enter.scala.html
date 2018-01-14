@@ -7,7 +7,7 @@
 
    <h3>Crypto/Crypto</h3>
 
-   @form(action=routes.RateController.enterCryptoPerCryptoRate){
+   @form(action=routes.RateController.enterRate){
       @helper.CSRF.formField
       <select class="" size="5" name="dividen" required>
          @for(currency <- currencies.cryptoCurrencies){
@@ -16,19 +16,21 @@
       </select>
       /
       <select class="" size="5" name="divisor" required>
-         @for(currency <- currencies.cryptoCurrencies){
-            <option @if(currency == CryptoCurrency.BTC){
-                  selected
-               }>@currency</option>
+         @for(currency <- currencies.divisors){
+            @if(currency.isCryptoCurrency){
+               <option @if(currency == Currency.BTC){
+                     selected
+                  }>@currency</option>
+            }
          }
       </select>
-      <input type="number" name="rate" step='0.0001' required />
+      <input type="number" name="rate" step='0.00001' required />
       <button type="submit">enter</button>
    }
 
    <h3>Crypto/Fiat</h3>
 
-   @form(action=routes.RateController.enterCryptoPerFiatRate){
+   @form(action=routes.RateController.enterRate){
       @helper.CSRF.formField
       <select class="" size="5" name="dividen" required>
          @for(currency <- currencies.cryptoCurrencies){
@@ -37,19 +39,21 @@
       </select>
       /
       <select class="" size="5" name="divisor" required>
-         @for(currency <- currencies.fiatCurrencies){
-            <option @if(currency == FiatCurrency.USD){
-                  selected
-               }>@currency</option>
+         @for(currency <- currencies.divisors){
+            @if(currency.isFiatCurrency){
+               <option @if(currency == Currency.USD){
+                     selected
+                  }>@currency</option>
+            }
          }
       </select>
-      <input type="number" name="rate" step="0.0001" required />
+      <input type="number" name="rate" step="0.00001" required />
       <button type="submit">enter</button>
    }
 
    <h3>Fiat/Fiat</h3>
 
-   @form(action=routes.RateController.enterFiatPerFiatRate){
+   @form(action=routes.RateController.enterRate){
       @helper.CSRF.formField
       <select class="" size="5" name="dividen"> required
          @for(currency <- currencies.fiatCurrencies){
@@ -62,7 +66,7 @@
             <option>@currency</option>
          }
       </select>
-      <input type="number" name="rate" step="0.01" required />
+      <input type="number" name="rate" step="0.001" required />
       <button type="submit">enter</button>
    }
 

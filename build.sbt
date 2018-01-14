@@ -21,12 +21,10 @@ libraryDependencies ++= {
       "com.beachape" %% "enumeratum" % enumeratumVersion,
       "com.beachape" %% "enumeratum-play" % enumeratumVersion,
       "com.github.kstyrc" % "embedded-redis" % "0.6" % Test,
-      "net.debasishg" %% "redisclient" % "3.4",
+      "com.github.etaty" %% "rediscala" % "1.8.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test,
       "com.flurdy" %% "scalasoup" % "0.1.0" % Test,
       "org.mockito" % "mockito-core" % "2.8.9" % Test,
       "ai.grakn" % "redis-mock" % "0.1.3" % Test
    )
 }
-
-// routesImport += "enums._"

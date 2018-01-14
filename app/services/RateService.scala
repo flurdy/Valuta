@@ -1,60 +1,55 @@
 package services
-
+//
 import com.google.inject.ImplementedBy
+import java.time.LocalDateTime
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import models._
+import Currency._
 import repositories._
-import CryptoCurrency._
-import FiatCurrency._
 
 
 @ImplementedBy(classOf[DefaultRateService])
 trait RateService {
 
    def rateRepository: RateRepository
+
    implicit val rateReadRepository: RateReadRepository = rateRepository
    implicit val rateWriteRepository: RateWriteRepository = rateRepository
 
-   val FiatCurrencies: List[FiatCurrency] = List(USD, EUR, GBP)
-   val PairCurrencies = List(USD, EUR, GBP, BTC)
+   def findRates()(implicit ec: ExecutionContext): Future[Rates] = {
 
-   private def findRates[A <: Currency](currencies: List[A])
-         (implicit ec: ExecutionContext): Future[List[CurrencyRates[A]]] =
-      Future.sequence {
-         currencies.map { currency =>
-            currency.findPairRates[A](PairCurrencies).map { pairRates =>
-               CurrencyRates( currency, pairRates )
+      def findCurrencyRates(dividen: Currency, divisors: List[Currency]): Future[List[CurrencyRate]] =
+         Future.sequence {
+            divisors.toList.map { divisor =>
+               rateRepository.findCurrencyRate(dividen, divisor)
             }
+         }.map( _.flatten )
+
+      def extractCurrencyRates(dividen: Currency, currencyRates: List[CurrencyRate]): CurrencyRates =
+         CurrencyRates(dividen, currencyRates.map( c => (c.date, c)))
+
+      val rates: Future[Map[Currency,CurrencyRates]] =
+         Future.sequence {
+            Currency.values.map{ dividen =>
+               findCurrencyRates(dividen, Currency.divisorCurrencies.toList)
+                        .map ( c => extractCurrencyRates(dividen, c) )
+                        .map ( c => (dividen, c) )
+            }
+         }.map{
+            _.toMap
+             .filter( !_._2.rates.isEmpty )
          }
-      }
+      rates.map(Rates(_))
+   }
 
-   private def findCryptoRates()(implicit ec: ExecutionContext): Future[List[CurrencyRates[CryptoCurrency]]] =
-      rateReadRepository.findCryptoCurrencies().map { currencies =>
-         findRates[CryptoCurrency](currencies)
-      }.flatten
-
-   private def findFiatRates()(implicit ec: ExecutionContext):
-         Future[List[CurrencyRates[FiatCurrency]]] =
-      findRates[FiatCurrency](FiatCurrencies)
-
-   def findRates()(implicit ec: ExecutionContext): Future[Rates] =
-      for {
-         cryptoRates <- findCryptoRates()
-         fiatRates   <- findFiatRates()
-      } yield Rates(cryptoRates, fiatRates)
+   def findDivisors(): Future[List[Currency]] = {
+      Future.successful( Currency.divisorCurrencies.toList )
+   }
 
    def findCurrencies(): Currencies =
-      Currencies(CryptoCurrency.values, FiatCurrency.values)
+      Currencies(Currency.CryptoCurrencies, Currency.FiatCurrencies, Currency.divisorCurrencies.toList)
 
-   def enterNewRate(rate: CryptoPerCryptoRate)(implicit ec: ExecutionContext): Future[Unit] =
-      rateWriteRepository.saveCryptoPerCryptoRate(rate)
-
-   def enterNewRate(rate: CryptoPerFiatRate)(implicit ec: ExecutionContext): Future[Unit] =
-      rateWriteRepository.saveCryptoPerFiatRate(rate)
-
-   def enterNewRate(rate: FiatPerFiatRate)(implicit ec: ExecutionContext): Future[Unit] =
-      rateWriteRepository.saveFiatPerFiatRate(rate)
 }
 
 @Singleton
