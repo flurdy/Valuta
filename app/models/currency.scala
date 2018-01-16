@@ -29,7 +29,7 @@ case object Currency extends PlayEnum[Currency] {
    val values = findValues
    val CryptoCurrencies  = values.filter(_.isCryptoCurrency)
    val FiatCurrencies    = values.filter(_.isFiatCurrency)
-   val divisorCurrencies = values.filter(_.isDivisor)
+   val divisorCurrencies = (FiatCurrencies union CryptoCurrencies).filter(_.isDivisor)
 
    case object BTC  extends Currency(description = "Bitcoin",
                                      currencyType = CryptoCurrency, isDivisor = true)

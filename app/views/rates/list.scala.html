@@ -1,8 +1,8 @@
-@(rates: Rates, divisors: List[Currency])(implicit messagesProvider: play.api.i18n.MessagesProvider)
+@(rates: Rates, divisors: List[Currency])(implicit messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
 
 @nautical("rates") {
 
-   <table border="1">
+   <table class="table table-striped">
       <thead>
          <tr>
             <th rowspan="2" colspan="1">Currency</th>
@@ -26,8 +26,7 @@
                   <td>
                      @for((date,pairRate) <- currencyRates.rates){
                         @if(divisor == pairRate.divisor){
-                           @pairRate.rate
-
+                           @pairRate.formattedRate
                         }
                      }
                   </td>

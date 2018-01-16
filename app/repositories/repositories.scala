@@ -77,10 +77,7 @@ trait RateWriteRepository extends CryptoKeys with WithLogger {
                   logger.info(s"Not adding ${rate.epochSecond} ${rate.epochSecond} to ${currencyDatesKey(rate.dividen)}")
              }
 
-      def addDivisorDate(): Future[Unit] = {
-            logger.debug("#### rate.date " + rate.date)
-            logger.debug("#### rate.epochSecond " + rate.epochSecond)
-            logger.debug("#### rate.epochSecond.toDouble " + rate.epochSecond.toDouble)
+      def addDivisorDate(): Future[Unit] =
             redisProvider.client.zadd(currencyPairDatesKey(rate.dividen, rate.divisor),
                                      (rate.epochSecond.toDouble, rate.epochSecond.toString)) map {
                 case 1L =>
@@ -88,7 +85,6 @@ trait RateWriteRepository extends CryptoKeys with WithLogger {
                 case _ =>
                   logger.info(s"Not adding ${rate.epochSecond} ${rate.epochSecond} to ${currencyPairDatesKey(rate.dividen, rate.divisor)}")
              }
-          }
 
       def addRate(): Future[Unit] =
             redisProvider.client.hset(currencyPairRatesKey(rate.dividen, rate.divisor),
@@ -105,7 +101,7 @@ trait RateWriteRepository extends CryptoKeys with WithLogger {
          _ <- addDividenDate()
          _ <- addDivisorDate()
          _ <- addRate()
-      } yield ()
+      } yield rate
    }
 
 }
@@ -169,7 +165,10 @@ trait RateReadRepository extends CryptoKeys with WithLogger {
 
          def findDatesForCurrency(): Future[List[String]] =
             redisProvider.client.zrevrange(currencyDatesKey(dividen), 0, 10)
-               .map(_.toList.map(_.utf8String))
+               .map(
+                  _.toList
+                   .map(_.utf8String)
+               )
 
          def findDivisorRates(date: String): Future[DivisorRates] =
             findDivisorsForCurrency(dividen) flatMap { divisors =>

@@ -1,73 +1,53 @@
-@(currencies: Currencies, error: Option[String] = None)(implicit request: RequestHeader, messagesProvider: play.api.i18n.MessagesProvider)
+@(currencies: Currencies, error: Option[String] = None)(implicit request: RequestHeader, messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
 
 @import helper._
 
-@nautical("Enter currency rate") {
-   <h2>Enter currency rate</h2>
+@nautical("Enter currency pair rate") {
+   <h4>Enter currency rate</h4>
 
-   <h3>Crypto/Crypto</h3>
-
-   @form(action=routes.RateController.enterRate){
+   @form(action=routes.RateController.enterRate, 'class -> "form-horizontal"){
       @helper.CSRF.formField
-      <select class="" size="5" name="dividen" required>
-         @for(currency <- currencies.cryptoCurrencies){
-            <option>@currency</option>
-         }
-      </select>
-      /
-      <select class="" size="5" name="divisor" required>
-         @for(currency <- currencies.divisors){
-            @if(currency.isCryptoCurrency){
-               <option @if(currency == Currency.BTC){
-                     selected
-                  }>@currency</option>
-            }
-         }
-      </select>
-      <input type="number" name="rate" step='0.00001' required />
-      <button type="submit">enter</button>
-   }
-
-   <h3>Crypto/Fiat</h3>
-
-   @form(action=routes.RateController.enterRate){
-      @helper.CSRF.formField
-      <select class="" size="5" name="dividen" required>
-         @for(currency <- currencies.cryptoCurrencies){
-            <option>@currency</option>
-         }
-      </select>
-      /
-      <select class="" size="5" name="divisor" required>
-         @for(currency <- currencies.divisors){
-            @if(currency.isFiatCurrency){
-               <option @if(currency == Currency.USD){
-                     selected
-                  }>@currency</option>
-            }
-         }
-      </select>
-      <input type="number" name="rate" step="0.00001" required />
-      <button type="submit">enter</button>
-   }
-
-   <h3>Fiat/Fiat</h3>
-
-   @form(action=routes.RateController.enterRate){
-      @helper.CSRF.formField
-      <select class="" size="5" name="dividen"> required
-         @for(currency <- currencies.fiatCurrencies){
-            <option>@currency</option>
-         }
-      </select>
-      /
-      <select class="" size="5" name="divisor" required>
-         @for(currency <- currencies.fiatCurrencies){
-            <option>@currency</option>
-         }
-      </select>
-      <input type="number" name="rate" step="0.001" required />
-      <button type="submit">enter</button>
+      <div class="form-group">
+         <label for="inputEmail3" class="col-sm-2 control-label">Dividen currency</label>
+         <div class="col-sm-5">
+            <select multiple class="form-control" name="dividen">
+               @for(currency <- currencies.cryptoCurrencies){
+                  <option @if(currency == Currency.BTC){
+                        selected
+                     }>@currency</option>
+               }
+               @for(currency <- currencies.fiatCurrencies){
+                  <option>@currency</option>
+               }
+            </select>
+         </div>
+      </div>
+      <div class="form-group">
+         <label for="inputPassword3" class="col-sm-2 control-label">Divisor currency</label>
+         <div class="col-sm-5">
+            <select multiple class="form-control" name="divisor">
+               @for(currency <- currencies.divisors){
+                  @if(currency.isFiatCurrency){
+                     <option @if(currency == Currency.USD){
+                           selected
+                        }>@currency</option>
+                  }
+               }
+            </select>
+         </div>
+      </div>
+      <div class="form-group">
+         <label for="inputRate" class="col-sm-2 control-label">Rate</label>
+         <div class="col-sm-5">
+            <input type="number" name="rate" class="form-control" id="inputRate"
+                  placeholder="123.456" step='0.0000001' required />
+         </div>
+      </div>
+      <div class="form-group">
+         <div class="col-sm-offset-2 col-sm-10">
+            <button type="submit" class="btn btn-success">enter rate</button>
+         </div>
+      </div>
    }
 
 }

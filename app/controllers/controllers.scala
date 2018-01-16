@@ -65,13 +65,15 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
                }
             }
          }, rateEntry => {
-            rateEntry.enterNewRate().flatMap { _ =>
+            logger.debug("Entering new rate")
+            rateEntry.copy(source=Some(RateSource.Manual)).enterNewRate().flatMap { rateEntry =>
                rateEntry.inverse.fold{
-                  Future.successful(())
-               }{
-                  _.enterNewRate()
+                  Future.successful(rateEntry)
+               }{ rateEntry =>
+                  rateEntry.enterNewRate()
                }.map { _ =>
-                  Ok("Rate entered")
+                  Redirect(routes.RateController.showEnterRates())
+                     .flashing("messageSuccess"->"Rate entered")
                }
             }
          }
@@ -83,7 +85,7 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
          case Some(currency) =>
             currency.findDivisors() flatMap { divisors =>
                currency.findRatesByDates() map { dateRates =>
-                  logger.debug("date rates " + dateRates)
+                  // logger.debug("date rates " + dateRates)
                   Ok(views.html.rates.currency(currency, dateRates, divisors))
                }
             }

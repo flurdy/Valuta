@@ -8,6 +8,8 @@ GET     /                     controllers.HomeController.index
 GET     /rates                controllers.RateController.list
 GET     /rates/enter          controllers.RateController.showEnterRates
 
+GET   /rate                   controllers.Default.redirect(to = "/rates/enter")
+
 POST    /rate                 controllers.RateController.enterRate
 
 GET     /currency/rate/:currency controllers.RateController.showCurrencyRates(currency)

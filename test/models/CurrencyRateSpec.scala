@@ -44,6 +44,38 @@ with TableDrivenPropertyChecks {
          (XRP, BTC, false)
       )
 
+   val formatted =
+      Table (
+         ("rate","formattedRate"),
+         ("0.1","0.1"),
+         ("0.01","0.01"),
+         ("0.001","0.001"),
+         ("0.0001","0.0001"),
+         ("0.123","0.123"),
+         ("0.0123","0.0123"),
+         ("0.01230","0.01230"),
+         ("0.00123","0.00123"),
+         ("0.000123","0.000123"),
+         ("0.0000123","0.0000123"),
+         ("0.00001230","0.00001230"),
+         ("0.1234567","0.1235"),
+         ("0.01234567","0.01235"),
+         ("0.001234567","0.001235"),
+         ("0.0001234567","0.0001235"),
+         ("0.00001234567","0.00001235"),
+         ("1.23","1.23"),
+         ("12.3","12.3"),
+         ("1.234567","1.235"),
+         ("12.34567","12.35"),
+         ("123.4567","123.5"),
+         ("1234.567","1,235"),
+         ("12345.67","12,346"),
+         ("123456.7","123,457"),
+         ("123456789012.1234","123,456,789,012"),
+         ("1234567", "1,234,567"),
+         ("12345000", "12,345,000"),
+         ("123450000", "123,450,000")
+      )
    "CurrencyRate" should {
       "inverse rate with correct scale" when given {
          forAll(rateScales) { (dividen: String, divisor: String, rate: String, inverse: String, description: String) =>
@@ -77,6 +109,16 @@ with TableDrivenPropertyChecks {
             }
          }
       }
-   }
 
+      "formattedRate" should {
+         forAll(formatted) { (rate, formattedRate) =>
+            s"$rate formatted to $formattedRate" in {
+               val currencyRate = CurrencyRate(
+                     ETH, USD, LocalDateTime.now,
+                     BigDecimal(rate), None)
+               currencyRate.formattedRate mustBe formattedRate
+            }
+         }
+      }
+   }
 }
