@@ -39,6 +39,11 @@ trait ApplicationConfiguration {
       findBoolean(property)
          .getOrElse(missingConfiguration(property))
 
+   def isEnabled(property: String, default: Boolean = false): Boolean =
+      findBoolean(property)
+         .orElse( findBoolean(s"${property}.enabled") )
+         .fold( default )( maybe => maybe )
+
 }
 
 @Singleton
@@ -61,3 +66,36 @@ trait DatabaseConfiguration extends ApplicationConfiguration {
 class DefaultDatabaseConfiguration @Inject() (val configuration: Configuration) extends DatabaseConfiguration {
    override lazy val rootConfig = configuration
 }
+
+
+@ImplementedBy(classOf[DefaultApiProviderConfiguration])
+trait ApiProviderConfiguration {
+
+   def appConfig: ApplicationConfiguration
+
+   lazy val pairConfig: ApplicationConfiguration =
+      if( appConfig.isEnabled("provider.cryptowatch") )
+         new ApplicationConfiguration {
+            val rootConfig = appConfig.getConfig("provider.cryptowatch.pair")
+         }
+      else
+         throw new IllegalStateException(
+            s"Configuration missing or disabled for provider.cryptowatch")   
+
+   def findRateUrl(pair: RatePair): Option[RatePairSource] = {
+      val source = RateSource.Gdax
+      val sourceProperty = s"${pair.dividen}.${pair.divisor}.source.${source}"
+      if(pairConfig.isEnabled(s"${sourceProperty}") )
+         pairConfig.findString(s"$sourceProperty.url" )
+            .map{ url =>
+               RatePairSource( source, pair, url )
+            }
+      else
+         throw new IllegalStateException(
+            s"Configuration missing or disabled for $sourceProperty")
+   }
+
+}
+
+@Singleton
+class DefaultApiProviderConfiguration @Inject() (val appConfig: ApplicationConfiguration) extends ApiProviderConfiguration

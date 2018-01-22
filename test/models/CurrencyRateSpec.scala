@@ -82,8 +82,9 @@ with TableDrivenPropertyChecks {
             s"${dividen} / ${divisor} and ${divisor} / ${dividen} with rate that $description" in new Setup {
 
                val currencyRate = CurrencyRate(
-                  Currency.withName(dividen),
-                  Currency.withName(divisor),
+                  RatePair(
+                     Currency.withName(dividen),
+                     Currency.withName(divisor)),
                   date,
                   BigDecimal(rate),
                   source)
@@ -101,7 +102,7 @@ with TableDrivenPropertyChecks {
          forAll(canInvert) { (dividen, divisor, canInvert) =>
             s"$dividen / $divisor and $divisor / $dividen which can $canInvert" in new Setup {
 
-                  val currencyRate = CurrencyRate( dividen, divisor, date, BigDecimal(defaultRate), source)
+                  val currencyRate = CurrencyRate( RatePair(dividen, divisor), date, BigDecimal(defaultRate), source)
 
                   if(canInvert) currencyRate.inverse mustBe defined
                   else currencyRate.inverse mustBe None
@@ -114,7 +115,7 @@ with TableDrivenPropertyChecks {
          forAll(formatted) { (rate, formattedRate) =>
             s"$rate formatted to $formattedRate" in {
                val currencyRate = CurrencyRate(
-                     ETH, USD, LocalDateTime.now,
+                     RatePair(ETH, USD), LocalDateTime.now,
                      BigDecimal(rate), None)
                currencyRate.formattedRate mustBe formattedRate
             }

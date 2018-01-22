@@ -22,6 +22,12 @@
                </p>
             }
 
+            @flash.get("messageError").map { message =>
+               <p class="alert alert-warning">
+                  @Html(message)
+               </p>
+            }
+
             @cargo
 
             <ul class="nav nav-tabs">

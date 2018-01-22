@@ -22,7 +22,7 @@ trait RateService {
       def findCurrencyRates(dividen: Currency, divisors: List[Currency]): Future[List[CurrencyRate]] =
          Future.sequence {
             divisors.toList.map { divisor =>
-               rateRepository.findCurrencyRate(dividen, divisor)
+               rateRepository.findCurrencyRate( RatePair(dividen, divisor))
             }
          }.map( _.flatten )
 

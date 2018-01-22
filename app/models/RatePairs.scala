@@ -12,26 +12,17 @@ import Currency._
 import repositories._
 
 
-sealed trait RateSource extends EnumEntry
-case object RateSource extends PlayEnum[RateSource]{
-   val values = findValues
-   case object Bitfinex extends RateSource
-   case object Poloniex extends RateSource
-   case object Gemini   extends RateSource
-   case object Gdax     extends RateSource
-   case object Bittrex  extends RateSource
-   case object Bitstamp extends RateSource
-   case object Kraken   extends RateSource
-   case object Binance  extends RateSource
-   case object CoinmarketCap extends RateSource
-   case object CryptoWatch   extends RateSource
-   case object Calculated    extends RateSource
-   case object Manual   extends RateSource
-   case object None     extends RateSource
+case class RatePair(dividen: Currency, divisor: Currency){
+
+   def inverse = RatePair(divisor, dividen)
+
+   def fetchRate()(implicit ec: ExecutionContext, apiProvider: ApiProvider): Future[Option[CurrencyRate]] =
+      apiProvider.findRate(this)
 }
 
-case class CurrencyRate(dividen: Currency, divisor: Currency,
-               date: LocalDateTime, rate: BigDecimal, source: Option[RateSource] = None) extends WithLogger {
+
+case class CurrencyRate(pair: RatePair, date: LocalDateTime,
+                        rate: BigDecimal, source: Option[RateSource] = None) extends WithLogger {
 
    val epochSecond = date.toEpochSecond(ZoneOffset.UTC)
 
@@ -39,9 +30,8 @@ case class CurrencyRate(dividen: Currency, divisor: Currency,
       rateWriteRepository.saveCurrencyRate(this)
 
    def inverse =
-      if(dividen.isDivisor)
-         Some(this.copy( dividen = divisor, divisor = dividen,
-                           rate = inverseRate))
+      if(pair.dividen.isDivisor)
+         Some(this.copy( pair = pair.inverse, rate = inverseRate))
       else None
 
    def inverseRate = {

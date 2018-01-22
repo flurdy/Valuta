@@ -47,6 +47,7 @@ with BeforeAndAfterAll with MockRedisServer {
       stopRedis()
       super.afterAll()
    }
+
    trait Setup {
 
       val dbConfig = new DatabaseConfiguration{
@@ -58,7 +59,7 @@ with BeforeAndAfterAll with MockRedisServer {
       val rateRepository = new DefaultRateRepository(redisProvider = redisProvider)
 
       def findLatestRate(dividen: Currency, divisor: Currency) =
-         rateRepository.findCurrencyRate(dividen, divisor)
+         rateRepository.findCurrencyRate(RatePair(dividen, divisor))
 
    }
 
@@ -70,7 +71,7 @@ with BeforeAndAfterAll with MockRedisServer {
          val date = LocalDateTime.now.minusMonths(5)
          val rate = BigDecimal("24201.12")
          val source = Some(RateSource.Bitstamp)
-         val currencyRate = CurrencyRate(dividen, divisor, date, rate, source)
+         val currencyRate = CurrencyRate(RatePair(dividen, divisor), date, rate, source)
 
          val flow =
             for {
@@ -95,8 +96,8 @@ with BeforeAndAfterAll with MockRedisServer {
          val date2 = LocalDateTime.now.minusMonths(1)
          val rate1 = BigDecimal("14201.12")
          val rate2 = BigDecimal("42101.12")
-         val currencyRate1 = CurrencyRate(dividen, divisor, date1, rate1, source)
-         val currencyRate2 = CurrencyRate(dividen, divisor, date2, rate2, source)
+         val currencyRate1 = CurrencyRate( RatePair(dividen, divisor), date1, rate1, source)
+         val currencyRate2 = CurrencyRate( RatePair(dividen, divisor), date2, rate2, source)
 
          val flow =
             for {

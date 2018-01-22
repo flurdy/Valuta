@@ -21,7 +21,6 @@ libraryDependencies ++= {
       "com.beachape" %% "enumeratum" % enumeratumVersion,
       "com.beachape" %% "enumeratum-play" % enumeratumVersion,
       "com.github.etaty" %% "rediscala" % "1.8.0",
-      // "org.webjars" %% "webjars-play" % "2.6.3",
       "org.webjars" % "bootstrap" % "3.3.7-1",
       "com.github.kstyrc" % "embedded-redis" % "0.6" % Test,
       "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test,

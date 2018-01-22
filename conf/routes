@@ -8,11 +8,13 @@ GET     /                     controllers.HomeController.index
 GET     /rates                controllers.RateController.list
 GET     /rates/enter          controllers.RateController.showEnterRates
 
-GET   /rate                   controllers.Default.redirect(to = "/rates/enter")
+GET     /rate                 controllers.Default.redirect(to = "/rates/enter")
 
 POST    /rate                 controllers.RateController.enterRate
 
-GET     /currency/rate/:currency controllers.RateController.showCurrencyRates(currency)
+POST    /currency/:currency/rate/fetch  controllers.RateController.fetchRate(currency)
+
+GET     /currency/:currency/rate       controllers.RateController.showCurrencyRates(currency)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)

@@ -1,21 +1,22 @@
-@(currency: Currency, dateRates: models.DateRates, divisors: List[Currency])(implicit messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
+@(currency: Currency, dateRates: models.DateRates, rateDivisors: List[Currency], allDivisors: List[Currency], sources: List[RateSource])(implicit request: RequestHeader, messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
+
+@import helper._
 
 @nautical(""){
-
 
    <h4>@currency</h4>
 
    <table class="table table-striped">
       <tr>
          <th>Date</th>
-         @for(divisor <- divisors){
+         @for(divisor <- rateDivisors){
             <th>@divisor</th>
          }
       </tr>
       @for(date <- dateRates.sortedKeys){
          <tr>
             <td>@date</td>
-            @for(divisor <- divisors){
+            @for(divisor <- rateDivisors){
                <td>
                   @for(rateDivisor <- dateRates.rates(date).rates.keys){
                      @if(divisor == rateDivisor){
@@ -30,4 +31,24 @@
       }
    </table>
 
+   <div class="well">
+      @form(action=routes.RateController.fetchRate(currency.entryName), 'class -> "form-horizontal"){
+         @helper.CSRF.formField
+         <div class="form-group">
+            <label for="divisor" class="col-sm-2 control-label">Divisor</label>
+            <div class="col-sm-5">
+               <select multiple class="form-control" name="divisor">
+                  @for(divisor <- allDivisors){
+                     <option value="">@divisor</option>
+                  }
+               </select>
+            </div>
+         </div>
+         <div class="form-group">
+            <div class="col-sm-offset-2 col-sm-10">
+               <button type="submit" class="btn btn-warning">fetch rate</button>
+            </div>
+         </div>
+      }
+   </div>
 }
