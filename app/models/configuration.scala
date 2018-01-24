@@ -5,9 +5,13 @@ import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 
 @ImplementedBy(classOf[DefaultApplicationConfiguration])
-trait ApplicationConfiguration {
+trait ApplicationConfiguration extends WithLogger {
 
-   def rootConfig: Configuration
+   def prefix: String
+
+   def configuration: Configuration
+
+   lazy val rootConfig = configuration.get[Configuration](prefix)
 
    def missingConfiguration(property: String) = throw new IllegalStateException(s"No configuration for $property")
 
@@ -40,59 +44,91 @@ trait ApplicationConfiguration {
          .getOrElse(missingConfiguration(property))
 
    def isEnabled(property: String, default: Boolean = false): Boolean =
-      findBoolean(property)
-         .orElse( findBoolean(s"${property}.enabled") )
+      findBoolean(s"${property}.enabled")
          .fold( default )( maybe => maybe )
+
+   def findSubKeys(property: String): Set[String] =
+      findConfig(property).fold[Set[String]](Set())(_.subKeys)
 
 }
 
 @Singleton
 class DefaultApplicationConfiguration @Inject() (val configuration: Configuration) extends ApplicationConfiguration {
-   override lazy val rootConfig = configuration.get[Configuration]("com.flurdy.valuta")
+   override val prefix = "com.flurdy.valuta"
 }
 
 
 @ImplementedBy(classOf[DefaultDatabaseConfiguration])
 trait DatabaseConfiguration extends ApplicationConfiguration {
 
-   def redisHost: String = findString("database.redis.host").getOrElse("localhost")
+   def redisHost: String = findString("redis.host").getOrElse("localhost")
 
-   def redisPort: Int = findInt("database.redis.port").getOrElse(6379)
+   def redisPort: Int = findInt("redis.port").getOrElse(6379)
 
 }
 
 
 @Singleton
-class DefaultDatabaseConfiguration @Inject() (val configuration: Configuration) extends DatabaseConfiguration {
-   override lazy val rootConfig = configuration
+class DefaultDatabaseConfiguration @Inject() (val configuration: Configuration)
+extends DatabaseConfiguration {
+   override val prefix = "database"
 }
 
 
 @ImplementedBy(classOf[DefaultApiProviderConfiguration])
-trait ApiProviderConfiguration {
+trait ApiProviderConfiguration extends WithLogger {
 
    def appConfig: ApplicationConfiguration
 
-   lazy val pairConfig: ApplicationConfiguration =
+   lazy val providerConfig: ApplicationConfiguration =
       if( appConfig.isEnabled("provider.cryptowatch") )
          new ApplicationConfiguration {
-            val rootConfig = appConfig.getConfig("provider.cryptowatch.pair")
+            val prefix = "provider.cryptowatch.pair"
+            val configuration = appConfig.rootConfig
          }
       else
          throw new IllegalStateException(
-            s"Configuration missing or disabled for provider.cryptowatch")   
+            s"Configuration missing or disabled for provider.cryptowatch")
 
    def findRateUrl(pair: RatePair): Option[RatePairSource] = {
       val source = RateSource.Gdax
-      val sourceProperty = s"${pair.dividen}.${pair.divisor}.source.${source}"
-      if(pairConfig.isEnabled(s"${sourceProperty}") )
-         pairConfig.findString(s"$sourceProperty.url" )
-            .map{ url =>
-               RatePairSource( source, pair, url )
+      val dividenProperty = s"${pair.dividen.entryName.toLowerCase}"
+      val pairProperty = s"${dividenProperty}.${pair.divisor.entryName.toLowerCase}"
+      val sourceProperty = s"${pairProperty}.source.${source.entryName.toLowerCase}"
+      if(providerConfig.isEnabled(dividenProperty) ) {
+         if(providerConfig.isEnabled(pairProperty) ) {
+            if(providerConfig.isEnabled(sourceProperty) ) {
+               providerConfig.findString(s"${sourceProperty}.url")
+                  .map{ url =>
+                     RatePairSource( source, pair, url )
+                  }
+            } else {
+               logger.warn(s"No source config or disabled for $sourceProperty")
+               None
             }
-      else
-         throw new IllegalStateException(
-            s"Configuration missing or disabled for $sourceProperty")
+         } else {
+            logger.warn(s"No pair config or disabled for $pairProperty")
+            None
+         }
+      } else {
+         logger.warn(s"No dividen config or disabled for $dividenProperty")
+         None
+      }
+   }
+
+   def findDivisors(dividen: Currency): List[Currency] = {
+      val dividenProperty = s"${dividen.entryName.toLowerCase}"
+      if(providerConfig.isEnabled(dividenProperty) ) {
+         providerConfig.findSubKeys(dividenProperty)
+               .toList
+               .filter( _ != "enabled" )
+               .filter( divisor => providerConfig.isEnabled(s"${dividenProperty}.${divisor}") )
+               .map( divisor => Currency.withNameOption(divisor.toUpperCase) )
+               .flatten
+      } else {
+         logger.warn(s"No dividen config or disabled for $dividenProperty")
+         List()
+      }
    }
 
 }

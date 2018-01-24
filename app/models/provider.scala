@@ -11,32 +11,31 @@ import connectors._
 import Currency._
 
 
+@ImplementedBy(classOf[DefaultCryptoWatchApi])
 trait ApiProvider {
 
    def findRate(pair: RatePair)(implicit ec: ExecutionContext): Future[Option[CurrencyRate]]
 
 }
 
-@ImplementedBy(classOf[DefaultCryptoWatchApi])
 trait CryptoWatchApi extends ApiProvider with WithLogger {
 
    def cryptoWatchConnector: CryptoWatchConnector
 
    def configuration: ApiProviderConfiguration
-   //
-   // def listsExchange(exchange: RateSource) = true
-   //
-   // def hasPair(pair: RatePair) = true
 
    def findRate(pair: RatePair)(implicit ec: ExecutionContext): Future[Option[CurrencyRate]] = {
       configuration.findRateUrl( pair )
          .fold[Future[Option[CurrencyRate]]]{
             Future.successful(None)
          }{ pairSource =>
-            // logger.debug("Url is " + pairSource.url)
             cryptoWatchConnector.findRate(pairSource.url)
                .map{ rate =>
                   Some( CurrencyRate( pair, LocalDateTime.now, rate, Some(pairSource.source) ) )
+               }.recover {
+                  case e =>
+                     logger.error(s"Unabled to find rate for ${pairSource.url}",e)
+                     None
                }
          }
    }

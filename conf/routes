@@ -12,7 +12,7 @@ GET     /rate                 controllers.Default.redirect(to = "/rates/enter")
 
 POST    /rate                 controllers.RateController.enterRate
 
-POST    /currency/:currency/rate/fetch  controllers.RateController.fetchRate(currency)
+POST    /currency/:dividen/divisor/:divisor/rate/fetch  controllers.RateController.fetchRate(dividen,divisor)
 
 GET     /currency/:currency/rate       controllers.RateController.showCurrencyRates(currency)
 

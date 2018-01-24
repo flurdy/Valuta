@@ -37,17 +37,10 @@ trait RateHelper {
          "source"  -> optional(RateSource.formField)
       )(CurrencyRate.apply)(CurrencyRate.unapply)
    )
-
-   def fetchRateForm = Form (
-      mapping (
-         "dividen" -> Currency.formField,
-         "divisor" -> Currency.formField
-      )(RatePair.apply)(RatePair.unapply)
-   )
 }
 
 @Singleton
-class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository, apiProvider: ApiProvider)
+class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository, apiProvider: ApiProvider, providerConfiguration: ApiProviderConfiguration)
 extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger {
 
    def list() = Action.async { implicit request =>
@@ -73,10 +66,10 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
          }, rateEntry => {
             logger.debug("Entering new rate")
             rateEntry.copy(source=Some(RateSource.Manual))
-                     .enterNewRate().flatMap {
+                     .save().flatMap {
                         _.inverse.fold{
                            Future.successful(rateEntry)
-                        }( _.enterNewRate() )
+                        }( _.save() )
                         .map { _ =>
                            Redirect(routes.RateController.showEnterRates())
                               .flashing("messageSuccess"->"Rate entered")
@@ -89,30 +82,56 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
    def showCurrencyRates(currencyCode: String) = Action.async { implicit request =>
       Currency.withNameOption(currencyCode) match {
          case Some(currency) =>
-            currency.findDivisors() flatMap { divisors =>
+            currency.findDivisorsUsed() flatMap { divisorsUsed =>
                currency.findRatesByDates() map { dateRates =>
                   val sources = RateSource.values.toList
-                  Ok(views.html.rates.currency(currency, dateRates, divisors, Currency.divisorCurrencies.toList, sources))
+                  Ok(views.html.rates.currency(
+                        currency, dateRates,
+                        divisorsUsed, currency.findDivisorsPossible,
+                        sources))
                }
             }
          case _ => Future.successful(NotFound("Currency not found"))
       }
    }
 
-   def fetchRate(dividen: String) = Action.async { implicit request =>
-      fetchRateForm.bindFromRequest.fold(
-         errors => {
+   def fetchRate(dividenName: String, divisorName: String) = Action.async { implicit request =>
+      logger.debug("Fetch new rate")
+      (for{
+         dividen <- Currency.withNameOption(dividenName)
+         divisor <- Currency.withNameOption(divisorName)
+      } yield RatePair(dividen,divisor))
+         .fold{
+            logger.info(s"Currency invalid $dividenName and $divisorName" )
             Future.successful{
-               Redirect(routes.RateController.showCurrencyRates(dividen)).flashing("messageError" -> "Problem fetching new rate")
+               Redirect(routes.RateController.showCurrencyRates(dividenName))
+                  .flashing("messageError" -> "Currency pair invalid")
             }
-         }, ratePair => {
-            logger.debug("Fetch new rate")
-
-            ratePair.fetchRate() map { rate =>
-               Redirect(routes.RateController.showCurrencyRates(dividen)).flashing("messageSuccess" -> "New rate fetched")
+         }{ ratePair =>
+            ratePair.fetchRate() flatMap { rate =>
+               rate.fold{
+                  logger.warn("Fetch rate form problem")
+                  Future.successful{
+                     Redirect(routes.RateController.showCurrencyRates(dividenName))
+                        .flashing("messageWarning" -> "Rate unavailable")
+                  }
+               }{ rateFound =>
+                  logger.debug(s"Rate found $rateFound")
+                  rateFound.save().flatMap { rateStored =>
+                     rateStored.convertToOtherDivisors()
+                        .map{ otherRates =>
+                           otherRates.map(_.save())
+                        }
+                        .map( Future.sequence(_) )
+                        .flatten
+                        .map{ _ =>
+                           Redirect(routes.RateController.showCurrencyRates(dividenName))
+                              .flashing("messageSuccess" -> "New rate fetched")
+                        }
+                  }
+               }
             }
          }
-      )
    }
 
 }

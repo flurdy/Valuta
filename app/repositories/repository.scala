@@ -115,18 +115,14 @@ trait RateReadRepository extends CryptoKeys with WithLogger {
 
    private def toDate(date: String) = LocalDateTime.ofEpochSecond(date.toLong, 0, ZoneOffset.UTC)
 
+   private def toCurrency(currency: ByteString) = Currency.withNameOption(currency.utf8String)
+
    private def findDateRate(pair: RatePair, date: String)(implicit ec: ExecutionContext):
          Future[Option[CurrencyRate]] =
        redisProvider.client.hget(currencyPairRatesKey(pair), date)
                .map( r1 => r1.map( r2 => CurrencyRate( pair, toDate(date), BigDecimal(r2.utf8String), None)))
 
-   private def isKnownDividenCurrency(dividen: Currency): Future[Boolean] =
-         redisProvider.client.sismember(currenciesKey, dividen.entryName)
-
    def findCurrencyRate(pair: RatePair)(implicit ec: ExecutionContext): Future[Option[CurrencyRate]] = {
-
-      def isKnownDivisorCurrency(): Future[Boolean] =
-            redisProvider.client.sismember(dividenPairsKey(pair.dividen), pair.divisor.entryName)
 
       def findLatestDate(isKnownDividen: Boolean, isKnownDivisor: Boolean): Future[Option[String]] =
          if(isKnownDividen && isKnownDivisor)
@@ -143,63 +139,90 @@ trait RateReadRepository extends CryptoKeys with WithLogger {
 
       for {
             isKnownDividen <- isKnownDividenCurrency(pair.dividen)
-            isKnownDivisor <- isKnownDivisorCurrency()
+            isKnownDivisor <- isKnownPair(pair)
             latestDate     <- findLatestDate(isKnownDividen, isKnownDivisor)
             currencyRate   <- findRate(latestDate)
          } yield currencyRate
    }
 
-   def findDivisorsForCurrency(dividen: Currency)(implicit ec: ExecutionContext): Future[List[Currency]] =
+   private def findKnownDividens()(implicit ec: ExecutionContext): Future[List[Currency]] = {
+      redisProvider.client.smembers(currenciesKey) map { members =>
+         members.map( toCurrency(_) )
+                .toList
+                .flatten
+      }
+   }
+
+   private def isKnownDividenCurrency(dividen: Currency): Future[Boolean] =
+      redisProvider.client.sismember(currenciesKey, dividen.entryName)
+
+   private def isKnownPair(pair: RatePair): Future[Boolean] =
+         redisProvider.client.sismember(dividenPairsKey(pair.dividen), pair.divisor.entryName)
+
+   def findDivisorsForDividen(dividen: Currency)(implicit ec: ExecutionContext): Future[List[Currency]] =
       isKnownDividenCurrency(dividen) flatMap {
          case true =>
             redisProvider.client.smembers(dividenPairsKey(dividen))
-               .map{ divisors =>
-                  divisors.map ( d => Currency.withNameOption(d.utf8String) )
-                          .flatten
-                          .toList
+               .map{ members =>
+                     members.map( toCurrency(_) )
+                            .toList
+                            .flatten
                }
          case false => Future.successful(List.empty)
       }
 
-   def findRatesByDates(dividen: Currency)(implicit ec: ExecutionContext): Future[DateRates] =
-      {
-
-         def findDatesForCurrency(): Future[List[String]] =
-            redisProvider.client.zrevrange(currencyDatesKey(dividen), 0, 10)
-               .map(
-                  _.toList
-                   .map(_.utf8String)
-               )
-
-         def findDivisorRates(date: String): Future[DivisorRates] =
-            findDivisorsForCurrency(dividen) flatMap { divisors =>
-               (Future.sequence {
-                  divisors map { divisor =>
-                     findDateRate( RatePair(dividen, divisor), date)
-                        .map( rate => rate map ( r => (divisor,r) ) )
-                  }
-               }).map( _.filter( _.isDefined )
-                        .map( _.get )
-                        .toMap )
-                 .map( DivisorRates(_) )
+   def findDividensForDivisor(divisor: Currency)(implicit ec: ExecutionContext): Future[List[Currency]] =
+      findKnownDividens().map { dividens =>
+         dividens.map { dividen =>
+            isKnownPair(RatePair(dividen, divisor)) map {
+               (_, dividen)
             }
-
-         isKnownDividenCurrency(dividen) flatMap {
-            case true =>
-               findDatesForCurrency() flatMap { dates =>
-                  (Future.sequence {
-                     dates map { date =>
-                        findDivisorRates(date) map { divisorRates =>
-                           (toDate(date), divisorRates)
-                        }
-                     }
-                  }).map( _.toMap )
-                    .map( DateRates(_) )
-               }
-            case false =>
-               Future.successful(DateRates(Map.empty))
          }
+      }.map ( Future.sequence(_) )
+      .flatten
+      .map { knownDividens =>
+         knownDividens.filter( _._1 )
+                      .map( _._2 )
       }
+
+   def findRatesByDates(dividen: Currency)(implicit ec: ExecutionContext): Future[DateRates] = {
+
+      def findDatesForCurrency(): Future[List[String]] =
+         redisProvider.client.zrevrange(currencyDatesKey(dividen), 0, 10)
+            .map(
+               _.toList
+                .map(_.utf8String)
+            )
+
+      def findDivisorRates(date: String): Future[DivisorRates] =
+         findDivisorsForDividen(dividen) flatMap { divisors =>
+            (Future.sequence {
+               divisors map { divisor =>
+                  findDateRate( RatePair(dividen, divisor), date)
+                     .map( rate => rate map ( r => (divisor,r) ) )
+               }
+            }).map( _.filter( _.isDefined )
+                     .map( _.get )
+                     .toMap )
+              .map( DivisorRates(_) )
+         }
+
+      isKnownDividenCurrency(dividen) flatMap {
+         case true =>
+            findDatesForCurrency() flatMap { dates =>
+               (Future.sequence {
+                  dates map { date =>
+                     findDivisorRates(date) map { divisorRates =>
+                        (toDate(date), divisorRates)
+                     }
+                  }
+               }).map( _.toMap )
+                 .map( DateRates(_) )
+            }
+         case false =>
+            Future.successful(DateRates(Map.empty))
+      }
+   }
 }
 
 

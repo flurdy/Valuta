@@ -51,7 +51,8 @@ with BeforeAndAfterAll with MockRedisServer {
    trait Setup {
 
       val dbConfig = new DatabaseConfiguration{
-         val rootConfig = Configuration.from(redisConfiguration)
+         val prefix = "database"
+         val configuration = Configuration.from(redisConfiguration)
       }
 
       val akkaSystem = ActorSystem("MySpec")

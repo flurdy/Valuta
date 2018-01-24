@@ -61,9 +61,9 @@ class CryptoWatchApiSpec extends PlaySpec with MockitoSugar with ScalaFutures {
          when(connectorMock.findRate(url))
                .thenReturn(Future.failed(new RuntimeException("nope")))
 
-         whenReady( api.findRate( pair ).failed ){ result =>
+         whenReady( api.findRate( pair ) ){ result =>
 
-            result mustBe a [RuntimeException]
+            result mustBe None
          }
       }
    }

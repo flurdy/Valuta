@@ -8,7 +8,10 @@ import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.play._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 import Currency._
+import repositories._
 
 class CurrencyRateSpec extends PlaySpec with MockitoSugar with ScalaFutures
 with TableDrivenPropertyChecks {
@@ -19,7 +22,7 @@ with TableDrivenPropertyChecks {
    val eth = ETH
    val usd = USD
 
-   trait Setup {
+   trait InverseSetup {
       val date = LocalDateTime.now
       val source = None
       val defaultRate = "12.34"
@@ -76,10 +79,22 @@ with TableDrivenPropertyChecks {
          ("12345000", "12,345,000"),
          ("123450000", "123,450,000")
       )
-   "CurrencyRate" should {
+   val convertRates =
+      Table(
+         ("sourceDividen", "sourceDivisor",
+                   "targetDividen", "targetDivisor",
+                              "interDividen", "interDivisor",
+                                        "sourceRate", "targetRate", "targetFormat", "interRate"),
+         (BTC, USD, BTC, GBP, GBP, USD, "13000", "10000", "10,000", "1.30" ),
+         (ETH, BTC, ETH, USD, BTC, USD, "0.1", "1000", "1,000", "10000" ),
+         (XRP, USD, XRP, BTC, BTC, USD, "0.005", "0.0000005", "0.0000005", "10000" )
+      )
+
+
+   "inverse" should {
       "inverse rate with correct scale" when given {
          forAll(rateScales) { (dividen: String, divisor: String, rate: String, inverse: String, description: String) =>
-            s"${dividen} / ${divisor} and ${divisor} / ${dividen} with rate that $description" in new Setup {
+            s"${dividen} / ${divisor} and ${divisor} / ${dividen} with rate that $description" in new InverseSetup {
 
                val currencyRate = CurrencyRate(
                   RatePair(
@@ -100,7 +115,7 @@ with TableDrivenPropertyChecks {
 
       "inverse some but not all currencies" when given {
          forAll(canInvert) { (dividen, divisor, canInvert) =>
-            s"$dividen / $divisor and $divisor / $dividen which can $canInvert" in new Setup {
+            s"$dividen / $divisor and $divisor / $dividen which can $canInvert" in new InverseSetup {
 
                   val currencyRate = CurrencyRate( RatePair(dividen, divisor), date, BigDecimal(defaultRate), source)
 
@@ -110,14 +125,78 @@ with TableDrivenPropertyChecks {
             }
          }
       }
+   }
 
-      "formattedRate" should {
-         forAll(formatted) { (rate, formattedRate) =>
-            s"$rate formatted to $formattedRate" in {
-               val currencyRate = CurrencyRate(
-                     RatePair(ETH, USD), LocalDateTime.now,
-                     BigDecimal(rate), None)
-               currencyRate.formattedRate mustBe formattedRate
+   "formattedRate" should {
+      forAll(formatted) { (rate, formattedRate) =>
+         s"$rate formatted to $formattedRate" in {
+            val currencyRate = CurrencyRate(
+                  RatePair(ETH, USD), LocalDateTime.now,
+                  BigDecimal(rate), None)
+            currencyRate.formattedRate mustBe formattedRate
+         }
+      }
+   }
+
+   "convertToOtherDivisors" should {
+      forAll(convertRates) { (sourceDividen, sourceDivisor, targetDividen, targetDivisor, interDividen, interDivisor, sourceRate, targetRate, targetFormat, interRate) =>
+         s"convert $sourceDividen/$sourceDivisor ($sourceRate) to $targetDividen/$targetDivisor ($targetFormat) via $interDividen/$interDivisor ($interRate)" in {
+
+            implicit val rateRepositoryMock = mock[RateReadRepository]
+            implicit val providerConfMock = mock[ApiProviderConfiguration]
+            val now = LocalDateTime.now
+            val sourcePair = RatePair(sourceDividen, sourceDivisor)
+            val interPair  = RatePair(interDividen,  interDivisor)
+            val targetPair = RatePair(targetDividen, targetDivisor)
+            val sourceDecimal  = BigDecimal(sourceRate)
+            val interDecimal   = BigDecimal(interRate)
+            val targetDecimal  = BigDecimal(targetRate)
+
+            val sourceCurrencyRate = CurrencyRate(
+                  sourcePair,
+                  date = now,
+                  sourceDecimal,
+                  source = Some(RateSource.Binance)
+               )
+
+            val interCurrencyRate = CurrencyRate(
+                  interPair,
+                  date = now.minusDays(2),
+                  interDecimal,
+                  source = Some(RateSource.Manual)
+               )
+
+            val targetCurrencyRate = CurrencyRate(
+                  targetPair,
+                  date = now,
+                  targetDecimal,
+                  source = Some(RateSource.Calculated)
+               )
+
+            if( sourceDivisor == interDivisor ) {
+               when( rateRepositoryMock.findDivisorsForDividen(sourceDivisor) )
+                     .thenReturn(Future.successful( List() ))
+               when( rateRepositoryMock.findDividensForDivisor(sourceDivisor) )
+                     .thenReturn(Future.successful( List(targetDivisor) ))
+            } else if( sourceDivisor == interDividen ) {
+               when( rateRepositoryMock.findDivisorsForDividen(sourceDivisor) )
+                     .thenReturn(Future.successful( List(targetDivisor) ))
+               when( rateRepositoryMock.findDividensForDivisor(sourceDivisor) )
+                     .thenReturn(Future.successful( List() ))
+            }
+
+            when( providerConfMock.findDivisors(sourceDividen) )
+                  .thenReturn( List(targetDivisor) )
+
+            when( rateRepositoryMock.findCurrencyRate(any[RatePair])(any[ExecutionContext])) //interPair))
+                  .thenReturn( Future.successful( Some(interCurrencyRate) ) )
+
+            whenReady( sourceCurrencyRate.convertToOtherDivisors() ){ convertedRates =>
+
+               convertedRates.head.formattedRate mustBe targetCurrencyRate.formattedRate
+               convertedRates.head mustBe targetCurrencyRate
+
+               verify(rateRepositoryMock).findCurrencyRate(interPair)
             }
          }
       }

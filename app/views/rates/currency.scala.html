@@ -32,23 +32,24 @@
    </table>
 
    <div class="well">
-      @form(action=routes.RateController.fetchRate(currency.entryName), 'class -> "form-horizontal"){
-         @helper.CSRF.formField
-         <div class="form-group">
-            <label for="divisor" class="col-sm-2 control-label">Divisor</label>
-            <div class="col-sm-5">
-               <select multiple class="form-control" name="divisor">
-                  @for(divisor <- allDivisors){
-                     <option value="">@divisor</option>
-                  }
-               </select>
-            </div>
-         </div>
-         <div class="form-group">
-            <div class="col-sm-offset-2 col-sm-10">
-               <button type="submit" class="btn btn-warning">fetch rate</button>
-            </div>
-         </div>
-      }
+      <table class="table">
+         <tr>
+            <th>Divisor</th>
+            <th></th>
+         </tr>
+         @for(divisor <- allDivisors){
+            @if(divisor != currency){
+               @form(action=routes.RateController.fetchRate(currency.entryName,divisor.entryName)){
+                  @helper.CSRF.formField
+                  <tr>
+                     <td>@divisor</td>
+                     <td>
+                        <button type="submit" class="btn btn-warning">fetch rate</button>
+                     </td>
+                  </tr>
+               }
+            }
+         }
+      </table>
    </div>
 }

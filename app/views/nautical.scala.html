@@ -22,8 +22,14 @@
                </p>
             }
 
-            @flash.get("messageError").map { message =>
+            @flash.get("messageWarning").map { message =>
                <p class="alert alert-warning">
+                  @Html(message)
+               </p>
+            }
+
+            @flash.get("messageError").map { message =>
+               <p class="alert alert-error">
                   @Html(message)
                </p>
             }

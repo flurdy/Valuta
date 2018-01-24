@@ -15,16 +15,8 @@ trait RateService {
    def rateRepository: RateRepository
 
    implicit val rateReadRepository: RateReadRepository = rateRepository
-   implicit val rateWriteRepository: RateWriteRepository = rateRepository
 
-   def findRates()(implicit ec: ExecutionContext): Future[Rates] = {
-
-      def findCurrencyRates(dividen: Currency, divisors: List[Currency]): Future[List[CurrencyRate]] =
-         Future.sequence {
-            divisors.toList.map { divisor =>
-               rateRepository.findCurrencyRate( RatePair(dividen, divisor))
-            }
-         }.map( _.flatten )
+   def findRates()(implicit ec: ExecutionContext, providerConf: ApiProviderConfiguration): Future[Rates] = {
 
       def extractCurrencyRates(dividen: Currency, currencyRates: List[CurrencyRate]): CurrencyRates =
          CurrencyRates(dividen, currencyRates.map( c => (c.date, c)))
@@ -32,7 +24,7 @@ trait RateService {
       val rates: Future[Map[Currency,CurrencyRates]] =
          Future.sequence {
             Currency.values.map{ dividen =>
-               findCurrencyRates(dividen, Currency.divisorCurrencies.toList)
+               dividen.findCurrencyRates()
                         .map ( c => extractCurrencyRates(dividen, c) )
                         .map ( c => (dividen, c) )
             }
