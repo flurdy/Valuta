@@ -12,16 +12,23 @@ case class CryptoWatchPrice(price: BigDecimal)
 
 case class CryptoWatchPriceResponse(result: CryptoWatchPrice)
 
-@ImplementedBy(classOf[DefaultCryptoWatchConnector])
-trait CryptoWatchConnector {
 
+trait ApiConnector {
+
+   def ws: WSClient
+
+   def findRate(url: String, pair: RatePair)(implicit ec: ExecutionContext): Future[BigDecimal]
+
+}
+
+
+@ImplementedBy(classOf[DefaultCryptoWatchConnector])
+trait CryptoWatchConnector extends ApiConnector {
 
    implicit val CryptoWatchPriceReads = Json.reads[CryptoWatchPrice]
    implicit val CryptoWatchPriceResponseReads = Json.reads[CryptoWatchPriceResponse]
 
-   def ws: WSClient
-
-   def findRate(url: String)(implicit ec: ExecutionContext): Future[BigDecimal] = {
+   override def findRate(url: String, pair: RatePair)(implicit ec: ExecutionContext): Future[BigDecimal] =
       ws.url(url)
         .withFollowRedirects(true)
         .withRequestTimeout(2000.millis)
@@ -29,9 +36,26 @@ trait CryptoWatchConnector {
         .map{ r =>
            (r.json \ "result" \ "price").as[BigDecimal]
         }
-   }
 
 }
 
 @Singleton
 class DefaultCryptoWatchConnector @Inject() (val ws: WSClient) extends CryptoWatchConnector
+
+
+@ImplementedBy(classOf[DefaultFixerIoConnector])
+trait FixerIoConnector extends ApiConnector with WithLogger {
+
+   override def findRate(url: String, pair: RatePair)(implicit ec: ExecutionContext): Future[BigDecimal] =
+      ws.url(url)
+        .withFollowRedirects(true)
+        .withRequestTimeout(2000.millis)
+        .get()
+        .map{ r =>
+           (r.json \ "rates" \ s"${pair.divisor.entryName.toUpperCase}" ).as[BigDecimal]
+        }
+
+}
+
+@Singleton
+class DefaultFixerIoConnector @Inject() (val ws: WSClient) extends FixerIoConnector

@@ -14,18 +14,18 @@ import scala.concurrent.{ExecutionContext, Future}
 import Currency._
 import connectors._
 
-class CryptoWatchApiSpec extends PlaySpec with MockitoSugar with ScalaFutures {
+class FixerIoApiSpec extends PlaySpec with MockitoSugar with ScalaFutures {
 
    trait Setup {
-      val connectorMock = mock[CryptoWatchConnector]
+      val connectorMock = mock[FixerIoConnector]
       val configurationMock = mock[ApiProviderConfiguration]
-      val api = new  CryptoWatchApi {
+      val api = new FixerIoApi {
          val connector = connectorMock
          val configuration = configurationMock
       }
-      val pair = RatePair(ETH, GBP)
+      val pair = RatePair(GBP, USD)
       val url = "http://someUrl"
-      val rateSource = RatePairSource(RateSource.Binance, pair, url)
+      val rateSource = RatePairSource(RateSource.Ecb, pair, url)
       val rate = BigDecimal("1.23")
    }
 
@@ -40,7 +40,7 @@ class CryptoWatchApiSpec extends PlaySpec with MockitoSugar with ScalaFutures {
             result mustBe defined
             result.value.rate mustBe rate
             result.value.pair mustBe pair
-            result.value.source.value mustBe RateSource.Binance
+            result.value.source.value mustBe RateSource.Ecb
          }
       }
 

@@ -11,25 +11,44 @@ import connectors._
 import Currency._
 
 
-@ImplementedBy(classOf[DefaultCryptoWatchApi])
-trait ApiProvider {
-
-   def findRate(pair: RatePair)(implicit ec: ExecutionContext): Future[Option[CurrencyRate]]
-
-}
-
-trait CryptoWatchApi extends ApiProvider with WithLogger {
-
-   def cryptoWatchConnector: CryptoWatchConnector
+@ImplementedBy(classOf[DefaultApiProviderLookup])
+trait ApiProviderLookup {
 
    def configuration: ApiProviderConfiguration
 
-   def findRate(pair: RatePair)(implicit ec: ExecutionContext): Future[Option[CurrencyRate]] = {
+   def cryptoWatchApi: CryptoWatchApi
+
+   def fixerIoApi: FixerIoApi
+
+   def findProvider(pair: RatePair)(implicit ec: ExecutionContext): Option[ApiProvider] =
+      configuration.findSources(pair).headOption.map {
+         case RateSource.Gdax => cryptoWatchApi
+         case RateSource.FixerIo  => fixerIoApi
+         case _ => throw new IllegalStateException(s"No provider for pair: $pair")
+      }
+
+}
+
+@Singleton
+class DefaultApiProviderLookup @Inject() (
+   val configuration: ApiProviderConfiguration,
+   val cryptoWatchApi: CryptoWatchApi,
+   val fixerIoApi: FixerIoApi
+) extends ApiProviderLookup
+
+
+trait ApiProvider extends WithLogger {
+
+   def connector: ApiConnector
+
+   def configuration: ApiProviderConfiguration
+
+   def findRate(pair: RatePair)(implicit ec: ExecutionContext): Future[Option[CurrencyRate]] =
       configuration.findRateUrl( pair )
          .fold[Future[Option[CurrencyRate]]]{
             Future.successful(None)
          }{ pairSource =>
-            cryptoWatchConnector.findRate(pairSource.url)
+            connector.findRate(pairSource.url, pair)
                .map{ rate =>
                   Some( CurrencyRate( pair, LocalDateTime.now, rate, Some(pairSource.source) ) )
                }.recover {
@@ -38,11 +57,23 @@ trait CryptoWatchApi extends ApiProvider with WithLogger {
                      None
                }
          }
-   }
 
 }
 
+
+@ImplementedBy(classOf[DefaultCryptoWatchApi])
+trait CryptoWatchApi extends ApiProvider
+
 @Singleton
 class DefaultCryptoWatchApi @Inject() (
-   val cryptoWatchConnector: CryptoWatchConnector,
+   val connector: CryptoWatchConnector,
    val configuration: ApiProviderConfiguration) extends CryptoWatchApi
+
+
+@ImplementedBy(classOf[DefaultFixerIoApi])
+trait FixerIoApi extends ApiProvider
+
+@Singleton
+class DefaultFixerIoApi @Inject() (
+   val connector: FixerIoConnector,
+   val configuration: ApiProviderConfiguration) extends FixerIoApi

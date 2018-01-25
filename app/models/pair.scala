@@ -16,8 +16,10 @@ case class RatePair(dividen: Currency, divisor: Currency){
 
    def inverse = RatePair(divisor, dividen)
 
-   def fetchRate()(implicit ec: ExecutionContext, apiProvider: ApiProvider): Future[Option[CurrencyRate]] =
-      apiProvider.findRate(this)
+   def fetchRate()(implicit ec: ExecutionContext, apiProviderLookup: ApiProviderLookup): Future[Option[CurrencyRate]] =
+      apiProviderLookup.findProvider(this).fold[Future[Option[CurrencyRate]]]{
+         Future.successful(None)
+      }( _.findRate(this) )
 
    def findRate()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
       rateRepository.findCurrencyRate(this)

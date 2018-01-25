@@ -24,7 +24,8 @@ case object RateSource extends PlayEnum[RateSource]{
    case object Binance       extends RateSource
    case object CoinmarketCap extends RateSource
    case object CryptoWatch   extends RateSource
-   case object ECB           extends RateSource
+   case object Ecb           extends RateSource
+   case object FixerIo       extends RateSource
    case object Calculated    extends RateSource
    case object Manual        extends RateSource
    case object None          extends RateSource

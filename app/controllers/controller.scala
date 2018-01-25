@@ -40,7 +40,7 @@ trait RateHelper {
 }
 
 @Singleton
-class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository, apiProvider: ApiProvider, providerConfiguration: ApiProviderConfiguration)
+class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository, apiProviderLookup: ApiProviderLookup, providerConfiguration: ApiProviderConfiguration)
 extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger {
 
    def list() = Action.async { implicit request =>

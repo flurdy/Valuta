@@ -90,51 +90,50 @@ trait ApiProviderConfiguration extends WithLogger {
          throw new IllegalStateException(
             s"Configuration missing or disabled for provider.cryptowatch")
 
-   def findRateUrl(pair: RatePair): Option[RatePairSource] = {
-      val source = RateSource.Gdax
-      val dividenProperty = s"${pair.dividen.entryName.toLowerCase}"
-      val pairProperty = s"${dividenProperty}.${pair.divisor.entryName.toLowerCase}"
-      val sourceProperty = s"${pairProperty}.source.${source.entryName.toLowerCase}"
-      if(providerConfig.isEnabled(dividenProperty) ) {
-         if(providerConfig.isEnabled(pairProperty) ) {
-            if(providerConfig.isEnabled(sourceProperty) ) {
-               providerConfig.findString(s"${sourceProperty}.url")
-                  .map{ url =>
-                     RatePairSource( source, pair, url )
-                  }
-            } else {
-               logger.warn(s"No source config or disabled for $sourceProperty")
-               None
-            }
-         } else {
-            logger.warn(s"No pair config or disabled for $pairProperty")
-            None
-         }
-      } else {
-         logger.warn(s"No dividen config or disabled for $dividenProperty")
-         None
-      }
-   }
+   private def toDividenProperty(dividen: Currency) = s"${dividen.entryName.toLowerCase}"
 
-   private def hasSources(divisorProperty: String) = {
-      val sourceProperty = s"${divisorProperty}.source"
-      ! providerConfig.findSubKeys(sourceProperty)
+   private def toPairProperty(pair: RatePair) =
+       s"${toDividenProperty(pair.dividen)}.${pair.divisor.entryName.toLowerCase}"
+
+   private def toSourceProperty(pair: RatePair, source: RateSource) =
+       s"${toPairProperty(pair)}.source.${source.entryName.toLowerCase}"
+
+   private def isDividenEnabled(dividen: Currency) =
+      providerConfig.isEnabled(toDividenProperty(dividen))
+
+   private def isPairEnabled(pair: RatePair) = providerConfig.isEnabled(toPairProperty(pair))
+
+   private def isSourceEnabled(pair: RatePair, source: RateSource) =
+      providerConfig.isEnabled(toSourceProperty(pair, source))
+
+   def findSources(pair: RatePair): List[RateSource] =
+      providerConfig.findSubKeys(s"${toPairProperty(pair)}.source")
                     .toList
-                    .filter( source => providerConfig.isEnabled(s"${sourceProperty}.${source}"))
-                    .isEmpty
-   }
+                    .map( RateSource.withNameOption(_) )
+                    .flatten
+                    .filter( source => providerConfig.isEnabled(toSourceProperty(pair, source)) )
+
+   private def hasSources(pair: RatePair) = ! findSources(pair).isEmpty
+
+   def findRateUrl(pair: RatePair): Option[RatePairSource] =
+      if( isDividenEnabled(pair.dividen)
+         && isPairEnabled(pair)
+            && hasSources(pair) ){
+               val source = findSources(pair).head
+               providerConfig.findString(s"${toSourceProperty(pair, source)}.url")
+                             .map( RatePairSource( source, pair, _) )
+     } else None
 
    def findDivisors(dividen: Currency): List[Currency] = {
-      val dividenProperty = s"${dividen.entryName.toLowerCase}"
-      if(providerConfig.isEnabled(dividenProperty) ) {
-         providerConfig.findSubKeys(dividenProperty)
+      if( isDividenEnabled(dividen) ){
+         providerConfig.findSubKeys(toDividenProperty(dividen))
                .toList
                .filter( _ != "enabled" )
-               .filter( divisor => providerConfig.isEnabled(s"${dividenProperty}.${divisor}") )
                .map( divisor => Currency.withNameOption(divisor.toUpperCase) )
                .flatten
+               .filter( divisor => isPairEnabled(RatePair(dividen,divisor)) )
       } else {
-         logger.warn(s"No dividen config or disabled for $dividenProperty")
+         logger.warn(s"No dividen config or disabled for $dividen")
          List()
       }
    }
@@ -142,7 +141,7 @@ trait ApiProviderConfiguration extends WithLogger {
    def findDivisorsWithSources(dividen: Currency): List[Currency] =
       findDivisors(dividen)
          .filter(divisor =>
-            hasSources(s"${dividen.entryName.toLowerCase}.${divisor.entryName.toLowerCase}") )
+            hasSources( RatePair(dividen, divisor) ) )
 
 
 }
