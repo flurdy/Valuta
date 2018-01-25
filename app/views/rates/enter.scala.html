@@ -10,7 +10,7 @@
       <div class="form-group">
          <label class="col-sm-2 control-label">Dividen currency</label>
          <div class="col-sm-5">
-            <select multiple class="form-control" name="dividen">
+            <select multiple class="form-control" name="ratePair.dividen">
                @for(currency <- currencies.cryptoCurrencies){
                   <option @if(currency == Currency.BTC){
                         selected
@@ -25,7 +25,7 @@
       <div class="form-group">
          <label class="col-sm-2 control-label">Divisor currency</label>
          <div class="col-sm-5">
-            <select multiple class="form-control" name="divisor">
+            <select multiple class="form-control" name="ratePair.divisor">
                @for(currency <- currencies.divisors){
                   @if(currency.isFiatCurrency){
                      <option @if(currency == Currency.USD){

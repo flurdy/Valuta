@@ -10,7 +10,7 @@ import repositories._
 
 
 @ImplementedBy(classOf[DefaultRateService])
-trait RateService {
+trait RateService extends WithLogger {
 
    def rateRepository: RateRepository
 

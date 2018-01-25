@@ -23,16 +23,19 @@ sealed abstract class Currency(val description: String, val currencyType: Curren
    def findDivisorsPossible()(implicit providerConf: ApiProviderConfiguration): List[Currency] =
       providerConf.findDivisors(this)
 
+   def findDivisorsWithSources()(implicit providerConf: ApiProviderConfiguration): List[Currency] =
+      providerConf.findDivisorsWithSources(this)
+
    def findRatesByDates()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[DateRates] =
       rateRepository.findRatesByDates(this)
 
-   def findCurrencyRates()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConf: ApiProviderConfiguration): Future[List[CurrencyRate]] =
+   def findCurrencyRates()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConf: ApiProviderConfiguration): Future[List[CurrencyRate]] = {
       Future.sequence {
          findDivisorsPossible().toList.map { divisor =>
             RatePair(this, divisor).findRate()
          }
       }.map( _.flatten )
-
+}
    def findDividensUsed()(implicit ec: ExecutionContext,
          rateRepository: RateReadRepository): Future[List[Currency]] =
       rateRepository.findDividensForDivisor(this)

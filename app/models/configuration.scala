@@ -116,6 +116,14 @@ trait ApiProviderConfiguration extends WithLogger {
       }
    }
 
+   private def hasSources(divisorProperty: String) = {
+      val sourceProperty = s"${divisorProperty}.source"
+      ! providerConfig.findSubKeys(sourceProperty)
+                    .toList
+                    .filter( source => providerConfig.isEnabled(s"${sourceProperty}.${source}"))
+                    .isEmpty
+   }
+
    def findDivisors(dividen: Currency): List[Currency] = {
       val dividenProperty = s"${dividen.entryName.toLowerCase}"
       if(providerConfig.isEnabled(dividenProperty) ) {
@@ -130,6 +138,12 @@ trait ApiProviderConfiguration extends WithLogger {
          List()
       }
    }
+
+   def findDivisorsWithSources(dividen: Currency): List[Currency] =
+      findDivisors(dividen)
+         .filter(divisor =>
+            hasSources(s"${dividen.entryName.toLowerCase}.${divisor.entryName.toLowerCase}") )
+
 
 }
 

@@ -65,16 +65,18 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
             }
          }, rateEntry => {
             logger.debug("Entering new rate")
-            rateEntry.copy(source=Some(RateSource.Manual))
-                     .save().flatMap {
-                        _.inverse.fold{
-                           Future.successful(rateEntry)
-                        }( _.save() )
-                        .map { _ =>
-                           Redirect(routes.RateController.showEnterRates())
-                              .flashing("messageSuccess"->"Rate entered")
-                        }
-                     }
+            val rate = rateEntry.copy(source=Some(RateSource.Manual))
+
+            rate.convertInverseAndConvert()
+                .map( rate :: _ )
+                .map( _.toSet )
+                .map( _.map( _.save() ) )
+                .map( Future.sequence(_) )
+                .flatten
+                .map{ _ =>
+                   Redirect(routes.RateController.showEnterRates())
+                      .flashing("messageSuccess"->"Rate entered")
+                }
          }
       )
    }
@@ -87,7 +89,9 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
                   val sources = RateSource.values.toList
                   Ok(views.html.rates.currency(
                         currency, dateRates,
-                        divisorsUsed, currency.findDivisorsPossible,
+                        divisorsUsed,
+                        currency.findDivisorsWithSources,
+                        currency.findDivisorsPossible,
                         sources))
                }
             }
@@ -117,18 +121,16 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
                   }
                }{ rateFound =>
                   logger.debug(s"Rate found $rateFound")
-                  rateFound.save().flatMap { rateStored =>
-                     rateStored.convertToOtherDivisors()
-                        .map{ otherRates =>
-                           otherRates.map(_.save())
-                        }
-                        .map( Future.sequence(_) )
-                        .flatten
-                        .map{ _ =>
-                           Redirect(routes.RateController.showCurrencyRates(dividenName))
-                              .flashing("messageSuccess" -> "New rate fetched")
-                        }
-                  }
+                  rateFound.convertInverseAndConvert()
+                           .map( rateFound :: _ )
+                           .map( _.toSet )
+                           .map( _.map( _.save() ) )
+                           .map( Future.sequence(_) )
+                           .flatten
+                           .map{ _ =>
+                               Redirect(routes.RateController.showCurrencyRates(dividenName))
+                                  .flashing("messageSuccess" -> "New rate fetched")
+                           }
                }
             }
          }

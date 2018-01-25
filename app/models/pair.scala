@@ -58,6 +58,20 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
       formatter.format(rate.setScale( newScale, RoundingMode.HALF_UP))
    }
 
+   def convertInverseAndConvert()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] =
+      for{
+         converts <- convertToOtherDivisors()
+         inverses <- inverseAndConvert()
+      } yield converts ::: inverses
+
+   def inverseAndConvert()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] =
+      inverse.fold[Future[List[CurrencyRate]]]{
+         Future.successful(List())
+      }{ i =>
+         i.convertToOtherDivisors()
+          .map( i :: _ )
+      }
+
    def convertToOtherDivisors()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] = {
 
       val pairsToConvert =
@@ -77,11 +91,15 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
                        }.flatten
          }
 
+      pairsToConvert.foreach( p => logger.debug(s"will try to convert $p"))
+
       val ratesToConvert = pairsToConvert.map { pairs =>
             pairs.map ( _.findRate() )
          }.map( Future.sequence(_) )
           .flatten
           .map( _.flatten )
+
+      ratesToConvert.foreach( r => logger.debug(s"will convert with rate $r"))
 
       ratesToConvert map { rates =>
          rates.map {
