@@ -109,9 +109,9 @@ trait ApiProviderConfiguration extends WithLogger {
    def findSources(pair: RatePair): List[RateSource] =
       providerConfig.findSubKeys(s"${toPairProperty(pair)}.source")
                     .toList
-                    .map( RateSource.withNameOption(_) )
+                    .map( source => RateSource.withNameOption(source.toLowerCase) )
                     .flatten
-                    .filter( source => providerConfig.isEnabled(toSourceProperty(pair, source)) )
+                    .filter( source => isSourceEnabled(pair, source) )
 
    private def hasSources(pair: RatePair) = ! findSources(pair).isEmpty
 
@@ -142,7 +142,6 @@ trait ApiProviderConfiguration extends WithLogger {
       findDivisors(dividen)
          .filter(divisor =>
             hasSources( RatePair(dividen, divisor) ) )
-
 
 }
 

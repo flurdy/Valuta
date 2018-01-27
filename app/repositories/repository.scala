@@ -57,16 +57,16 @@ trait RateWriteRepository extends CryptoKeys with WithLogger {
             redisProvider.client.sadd(currenciesKey, rate.pair.dividen.entryName) map {
                case 1L =>
                   logger.info(s"Adding ${rate.pair.dividen} to $currenciesKey" )
-               case _ =>
-                  logger.debug(s"Not adding ${rate.pair.dividen} to $currenciesKey" )
+               case _ => ()
+                  // logger.debug(s"Not adding ${rate.pair.dividen} to $currenciesKey" )
             }
 
       def addDivisorPair(): Future[Unit] =
             redisProvider.client.sadd(dividenPairsKey(rate.pair.dividen), rate.pair.divisor.entryName) map {
                case 1L =>
                   logger.info(s"Adding ${rate.pair.divisor} to ${dividenPairsKey(rate.pair.dividen)}")
-               case _ =>
-                  logger.debug(s"Not adding ${rate.pair.divisor} to ${dividenPairsKey(rate.pair.dividen)}")
+               case _ => ()
+               //    logger.debug(s"Not adding ${rate.pair.divisor} to ${dividenPairsKey(rate.pair.dividen)}")
             }
 
       def addDividenDate(): Future[Unit] =

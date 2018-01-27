@@ -23,6 +23,7 @@ case class RatePair(dividen: Currency, divisor: Currency){
 
    def findRate()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
       rateRepository.findCurrencyRate(this)
+
 }
 
 
@@ -76,24 +77,31 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
 
    def convertToOtherDivisors()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] = {
 
+      logger.debug(s"converting ${this.pair}")
+
       val pairsToConvert =
          for {
             divisorDivisors <- pair.divisor.findDivisorsUsed()
+            // _ = logger.debug(s"divisors are $divisorDivisors")
             divisorDividens <- pair.divisor.findDividensUsed()
+            // _ = logger.debug(s"dividens are $divisorDividens")
          } yield {
            pair.dividen.findDivisorsPossible()
                        .filter( _ != pair.divisor )
                        .map { divisor =>
+                          // logger.debug(s"divisor $divisor")
                           if( divisorDivisors.exists( _ == divisor ) )
                              Some( RatePair( pair.divisor , divisor ) )
                           else if( divisorDividens.exists( _ == divisor ) )
                              Some( RatePair( divisor, pair.divisor ) )
-                          else
+                          else {
+                             // logger.debug(s"Not a rate pair $this and $divisor")
                              None
+                          }
                        }.flatten
          }
 
-      pairsToConvert.foreach( p => logger.debug(s"will try to convert $p"))
+      // pairsToConvert.foreach( p => logger.debug(s"${this.pair} will try to convert $p"))
 
       val ratesToConvert = pairsToConvert.map { pairs =>
             pairs.map ( _.findRate() )
@@ -101,7 +109,7 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
           .flatten
           .map( _.flatten )
 
-      ratesToConvert.foreach( r => logger.debug(s"will convert with rate $r"))
+      // ratesToConvert.foreach( r => logger.debug(s"${this.pair} will convert with rate $r"))
 
       ratesToConvert map { rates =>
          rates.map {

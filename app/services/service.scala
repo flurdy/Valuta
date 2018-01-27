@@ -35,13 +35,72 @@ trait RateService extends WithLogger {
       rates.map(Rates(_))
    }
 
-   def findDivisors(): Future[List[Currency]] = {
-      Future.successful( Currency.divisorCurrencies.toList )
-   }
+   def findDivisors(rates: Rates): Future[List[Currency]] =
+      Future.successful{
+         rates.rates
+              .values
+              .toList
+              .map ( _.rates )
+              .map { cr =>
+                 cr.map(_._2)
+              }.flatten
+              .map ( _.pair.divisor )
+              .toSet
+              .toList
+     }
 
    def findCurrencies(): Currencies =
       Currencies(Currency.CryptoCurrencies, Currency.FiatCurrencies, Currency.divisorCurrencies.toList)
 
+   def fetchAllRates()(implicit ec: ExecutionContext,
+         providerConf: ApiProviderConfiguration,
+         apiProviderLookup: ApiProviderLookup,
+         rateWriteRepository: RateWriteRepository): Future[Unit] = {
+
+      def findPairsWithSource(currencies: List[Currency]): List[RatePair] =
+         currencies.map { currency =>
+                     currency.findDivisorsWithSources()
+                             .map( RatePair(currency,_) )
+                  }.flatten
+
+      def findPairsPossible(currencies: List[Currency]): List[RatePair] =
+         currencies.map { currency =>
+                     currency.findDivisorsPossible()
+                             .map( RatePair(currency,_) )
+                  }.flatten
+
+      def findRates(pairs: List[RatePair]): Future[List[CurrencyRate]] =
+         Future.sequence {
+            pairs.map ( _.fetchRate() )
+         }.map ( _.flatten )
+
+      def saveRates(rates: List[CurrencyRate]): Future[List[CurrencyRate]] =
+         Future.sequence{
+            rates.map ( _.save() )
+         }
+
+      def convertRates(rates: List[CurrencyRate]): Future[List[CurrencyRate]] =
+         Future.sequence{
+            rates.map ( _.convertInverseAndConvert() )
+         }.map( _.flatten )
+
+      def filterConverts( pairs: Set[RatePair], converted: List[CurrencyRate]): List[CurrencyRate] =
+         converted.filter( rate => pairs.contains(rate.pair) )
+
+      val fiatSourcePairs   = findPairsWithSource(Currency.FiatCurrencies.toList)
+      val cryptoSourcePairs = findPairsWithSource(Currency.CryptoCurrencies.toList)
+      for{
+         fiatRates        <- findRates(fiatSourcePairs)
+         savedFiatRates   <- saveRates(fiatRates)
+         cryptoRates      <- findRates(cryptoSourcePairs)
+         savedCryptoRates <- saveRates(cryptoRates)
+         savedSourceRates =  savedFiatRates union savedCryptoRates
+         pairsSaved       =  savedSourceRates.map ( _.pair ).toSet
+         ratesConverted   <- convertRates( savedSourceRates )
+         filteredConverts =  filterConverts(pairsSaved, ratesConverted)
+         savedConverted   <- saveRates(filteredConverts)
+      } yield ()
+   }
 }
 
 @Singleton

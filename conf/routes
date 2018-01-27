@@ -7,6 +7,8 @@
 GET     /                     controllers.HomeController.index
 GET     /rates                controllers.RateController.list
 GET     /rates/enter          controllers.RateController.showEnterRates
+GET     /rates/fetch          controllers.RateController.showFetchRates
+POST    /rates/fetch          controllers.RateController.fetchAllRates
 
 GET     /rate                 controllers.Default.redirect(to = "/rates/enter")
 

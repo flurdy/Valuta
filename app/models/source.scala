@@ -10,7 +10,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import connectors._
 
 
-sealed abstract class RateSource extends EnumEntry
+sealed abstract class RateSource extends EnumEntry with Lowercase
 
 case object RateSource extends PlayEnum[RateSource]{
    val values = findValues

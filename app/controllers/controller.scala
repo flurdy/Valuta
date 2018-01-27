@@ -46,7 +46,7 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
    def list() = Action.async { implicit request =>
       for {
          rates    <- rateService.findRates()
-         divisors <- rateService.findDivisors()
+         divisors <- rateService.findDivisors(rates)
       } yield Ok(views.html.rates.list(rates, divisors))
    }
 
@@ -100,7 +100,6 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
    }
 
    def fetchRate(dividenName: String, divisorName: String) = Action.async { implicit request =>
-      logger.debug("Fetch new rate")
       (for{
          dividen <- Currency.withNameOption(dividenName)
          divisor <- Currency.withNameOption(divisorName)
@@ -133,6 +132,18 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
                            }
                }
             }
+         }
+   }
+
+   def showFetchRates() = Action { implicit request =>
+      Ok(views.html.rates.fetch())
+   }
+
+   def fetchAllRates() = Action.async { implicit request =>
+      rateService.fetchAllRates()
+         .map{ _ =>
+            Redirect(routes.RateController.list())
+               .flashing("messageSuccess" -> "New rates fetched")
          }
    }
 
