@@ -4,7 +4,8 @@ import enumeratum._
 import enumeratum.values._
 import enumeratum.EnumEntry._
 import java.text.DecimalFormat
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{LocalDate, LocalDateTime, ZoneOffset}
+import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigDecimal.RoundingMode
 import scala.math._
@@ -16,10 +17,27 @@ case class RatePair(dividen: Currency, divisor: Currency){
 
    def inverse = RatePair(divisor, dividen)
 
-   def fetchRate()(implicit ec: ExecutionContext, apiProviderLookup: ApiProviderLookup): Future[Option[CurrencyRate]] =
+   val isFiatPair = dividen.isFiatCurrency && divisor.isFiatCurrency
+
+   private def lookupRate()(implicit ec: ExecutionContext, apiProviderLookup: ApiProviderLookup): Future[Option[CurrencyRate]] =
       apiProviderLookup.findProvider(this).fold[Future[Option[CurrencyRate]]]{
          Future.successful(None)
       }( _.findRate(this) )
+
+   private def isFromToday(date: LocalDateTime) = date.toLocalDate.isAfter(LocalDate.now.minusDays(1))
+
+   private def isFromThisHour(date: LocalDateTime) =
+      date.isAfter(LocalDateTime.now.truncatedTo(ChronoUnit.HOURS))
+
+   def fetchRate()(implicit ec: ExecutionContext, apiProviderLookup: ApiProviderLookup,
+            rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
+      findRate().flatMap {
+         case Some(rateFound) if isFiatPair && isFromToday(rateFound.date) =>
+            Future.successful(Some(rateFound))
+         case Some(rateFound) if isFromThisHour(rateFound.date) =>
+            Future.successful(Some(rateFound))
+         case _ => lookupRate()
+      }
 
    def findRate()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
       rateRepository.findCurrencyRate(this)
@@ -61,13 +79,17 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
       formatter.format(rate.setScale( newScale, RoundingMode.HALF_UP))
    }
 
-   def convertInverseAndConvert()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] =
+   def convertInverseAndConvert()(implicit ec: ExecutionContext,
+            rateRepository: RateReadRepository,
+            providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] =
       for{
          converts <- convertToOtherDivisors()
          inverses <- inverseAndConvert()
       } yield converts ::: inverses
 
-   def inverseAndConvert()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] =
+   def inverseAndConvert()(implicit ec: ExecutionContext,
+            rateRepository: RateReadRepository,
+            providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] =
       inverse.fold[Future[List[CurrencyRate]]]{
          Future.successful(List())
       }{ i =>
@@ -75,9 +97,11 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
           .map( i :: _ )
       }
 
-   def convertToOtherDivisors()(implicit ec: ExecutionContext, rateRepository: RateReadRepository, providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] = {
+   def convertToOtherDivisors()(implicit ec: ExecutionContext,
+            rateRepository: RateReadRepository,
+            providerConfig: ApiProviderConfiguration): Future[List[CurrencyRate]] = {
 
-      logger.debug(s"converting ${this.pair}")
+      // logger.debug(s"converting ${this.pair}")
 
       val pairsToConvert =
          for {

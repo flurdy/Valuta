@@ -46,7 +46,8 @@ trait RateService extends WithLogger {
               }.flatten
               .map ( _.pair.divisor )
               .toSet
-              .toList
+              .toList              
+              .sortWith( _.entryName > _.entryName )
      }
 
    def findCurrencies(): Currencies =
@@ -84,9 +85,6 @@ trait RateService extends WithLogger {
             rates.map ( _.convertInverseAndConvert() )
          }.map( _.flatten )
 
-      def filterConverts( pairs: Set[RatePair], converted: List[CurrencyRate]): List[CurrencyRate] =
-         converted.filter( rate => pairs.contains(rate.pair) )
-
       val fiatSourcePairs   = findPairsWithSource(Currency.FiatCurrencies.toList)
       val cryptoSourcePairs = findPairsWithSource(Currency.CryptoCurrencies.toList)
       for{
@@ -97,8 +95,15 @@ trait RateService extends WithLogger {
          savedSourceRates =  savedFiatRates union savedCryptoRates
          pairsSaved       =  savedSourceRates.map ( _.pair ).toSet
          ratesConverted   <- convertRates( savedSourceRates )
-         filteredConverts =  filterConverts(pairsSaved, ratesConverted)
+         // _ = ratesConverted.map( r => logger.debug(s"converted pair ${r.pair}") )
+         filteredConverts =  ratesConverted.filter( rate => !pairsSaved.contains(rate.pair) )
+         // _ = filteredConverts.map( r => logger.debug(s"filtered pair ${r.pair}") )
          savedConverted   <- saveRates(filteredConverts)
+         _ = logger.info(
+              s"Saved ${savedFiatRates.size} fiat rates, "
+            + s"${savedCryptoRates.size} crypto rates, "
+            + s"${ratesConverted.size} unfiltered rates, "
+            + s"${savedConverted.size} converted rates")
       } yield ()
    }
 }

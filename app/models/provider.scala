@@ -23,6 +23,7 @@ trait ApiProviderLookup {
    def findProvider(pair: RatePair)(implicit ec: ExecutionContext): Option[ApiProvider] =
       configuration.findSources(pair).headOption.map {
          case RateSource.Gdax => cryptoWatchApi
+         case RateSource.Bitfinex => cryptoWatchApi
          case RateSource.FixerIo  => fixerIoApi
          case _ => throw new IllegalStateException(s"No provider for pair: $pair")
       }

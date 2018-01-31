@@ -133,7 +133,7 @@ trait ApiProviderConfiguration extends WithLogger {
                .flatten
                .filter( divisor => isPairEnabled(RatePair(dividen,divisor)) )
       } else {
-         logger.warn(s"No dividen config or disabled for $dividen")
+         // logger.warn(s"No dividen config or disabled for $dividen")
          List()
       }
    }

@@ -53,6 +53,8 @@ trait RateWriteRepository extends CryptoKeys with WithLogger {
 
    def saveCurrencyRate(rate: CurrencyRate)(implicit ec: ExecutionContext) = {
 
+      logger.info(s"Saving rate for ${rate.pair}")
+
       def addDividen(): Future[Unit] =
             redisProvider.client.sadd(currenciesKey, rate.pair.dividen.entryName) map {
                case 1L =>
@@ -74,8 +76,8 @@ trait RateWriteRepository extends CryptoKeys with WithLogger {
                                      (rate.epochSecond.toDouble, rate.epochSecond.toString)) map {
                 case 1L =>
                   logger.info(s"Adding ${rate.date} ${rate.epochSecond} to ${currencyDatesKey(rate.pair.dividen)}")
-                case _ =>
-                  logger.info(s"Not adding ${rate.epochSecond} ${rate.epochSecond} to ${currencyDatesKey(rate.pair.dividen)}")
+                case _ => ()
+                  // logger.info(s"Not adding ${rate.epochSecond} ${rate.epochSecond} to ${currencyDatesKey(rate.pair.dividen)}")
              }
 
       def addDivisorDate(): Future[Unit] =

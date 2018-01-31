@@ -1,6 +1,7 @@
 package controllers
 
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import javax.inject.{Inject, Singleton}
 import play.api._
 import play.api.data._
@@ -43,11 +44,29 @@ trait RateHelper {
 class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository, apiProviderLookup: ApiProviderLookup, providerConfiguration: ApiProviderConfiguration)
 extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger {
 
+   val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+
    def list() = Action.async { implicit request =>
       for {
          rates    <- rateService.findRates()
          divisors <- rateService.findDivisors(rates)
-      } yield Ok(views.html.rates.list(rates, divisors))
+      } yield {
+         val cryptos = rates.rates.keys
+                                  .toList
+                                  .filter(_.isCryptoCurrency)
+                                  .sortWith( _.entryName < _.entryName  )
+         val fiats = rates.rates.keys
+                                .toList
+                                .filter(_.isFiatCurrency)
+                                .sortWith( _.entryName < _.entryName  )
+         val lastFormatted = rates.rates.values.toList
+                        .map(_.rates.map(_._1))
+                        .flatten
+                        .sortWith( _.isAfter(_) )
+                        .headOption
+                        .map(formatter.format(_))
+         Ok(views.html.rates.list(cryptos, fiats, rates, divisors, lastFormatted))
+      }
    }
 
    def showEnterRates() = Action { implicit request =>

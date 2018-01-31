@@ -1,4 +1,23 @@
-@(rates: Rates, divisors: List[Currency])(implicit messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
+@(cryptos: List[Currency], fiats: List[Currency], rates: Rates, divisors: List[Currency], lastUpdate: Option[String]  = None)(implicit messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
+
+@showCurrencyRow(currency: Currency, currencyRates: CurrencyRates) = {
+   <tr>
+      <td>
+         <a href="@routes.RateController.showCurrencyRates(currency.entryName)">
+            @currency
+         </a>
+      </td>
+      @for(divisor <- divisors){
+         <td>
+            @for((date,pairRate) <- currencyRates.rates){
+               @if(divisor == pairRate.pair.divisor){
+                  @pairRate.formattedRate
+               }
+            }
+         </td>
+      }
+   </tr>
+}
 
 @nautical("rates") {
 
@@ -15,25 +34,19 @@
          </tr>
       </thead>
       <tbody>
-         @for((currency, currencyRates) <- rates.rates){
-            <tr>
-               <td>
-                  <a href="@routes.RateController.showCurrencyRates(currency.entryName)">
-                     @currency
-                  </a>
-               </td>
-               @for(divisor <- divisors){
-                  <td>
-                     @for((date,pairRate) <- currencyRates.rates){
-                        @if(divisor == pairRate.pair.divisor){
-                           @pairRate.formattedRate
-                        }
-                     }
-                  </td>
-               }
-            </tr>
+         @for(currency <- cryptos){
+            @showCurrencyRow(currency, rates.rates(currency))
+         }
+         @for(currency <- fiats){
+            @showCurrencyRow(currency, rates.rates(currency))
          }
       </tbody>
    </table>
+
+   @lastUpdate.map{ date =>
+      <div class="awell small pull-right">
+         <p>Last update: @date</p>
+      </div>
+   }
 
 }
