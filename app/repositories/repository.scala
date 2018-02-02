@@ -85,8 +85,8 @@ trait RateWriteRepository extends CryptoKeys with WithLogger {
                                      (rate.epochSecond.toDouble, rate.epochSecond.toString)) map {
                 case 1L =>
                   logger.info(s"Adding ${rate.date} ${rate.epochSecond} to ${currencyPairDatesKey(rate.pair)}")
-                case _ =>
-                  logger.info(s"Not adding ${rate.epochSecond} ${rate.epochSecond} to ${currencyPairDatesKey(rate.pair)}")
+                case _ => ()
+                  // logger.debug(s"No need to add ${rate.epochSecond} ${rate.epochSecond} to ${currencyPairDatesKey(rate.pair)}")
              }
 
       def addRate(): Future[Unit] =
@@ -122,7 +122,7 @@ trait RateReadRepository extends CryptoKeys with WithLogger {
    private def findDateRate(pair: RatePair, date: String)(implicit ec: ExecutionContext):
          Future[Option[CurrencyRate]] =
        redisProvider.client.hget(currencyPairRatesKey(pair), date)
-               .map( r1 => r1.map( r2 => CurrencyRate( pair, toDate(date), BigDecimal(r2.utf8String), None)))
+               .map( r1 => r1.map( r2 => CurrencyRate( pair, toDate(date), BigDecimal(r2.utf8String), None, Some(SourcedFrom.FromCache))))
 
    def findCurrencyRate(pair: RatePair)(implicit ec: ExecutionContext): Future[Option[CurrencyRate]] = {
 

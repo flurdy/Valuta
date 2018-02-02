@@ -20,7 +20,11 @@ class HomeController @Inject()(cc: ControllerComponents)
 extends AbstractController(cc) with I18nSupport {
 
    def index() = Action { implicit request =>
-      Ok(views.html.index())
+      Redirect(routes.RateController.list())
+   }
+
+   def about() = Action { implicit request =>
+      Ok(views.html.about())
    }
 
 }
@@ -35,19 +39,21 @@ trait RateHelper {
          )(RatePair.apply)(RatePair.unapply),
          "date"    -> ignored(LocalDateTime.now),
          "rate"    -> bigDecimal,
-         "source"  -> optional(RateSource.formField)
+         "source"  -> optional(RateSource.formField),
+         "sourcedFrom"  -> optional(SourcedFrom.formField)
       )(CurrencyRate.apply)(CurrencyRate.unapply)
    )
 }
 
 @Singleton
-class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository, apiProviderLookup: ApiProviderLookup, providerConfiguration: ApiProviderConfiguration)
+class RateController @Inject() (cc: ControllerComponents, rateService: RateService)(implicit ec: ExecutionContext, rateRepository: RateRepository, apiProviderLookup: ApiProviderLookup, providerConfiguration: ApiProviderConfiguration, featureToggles: FeatureToggles)
 extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger {
 
    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
    def list() = Action.async { implicit request =>
       for {
+         _        <- rateService.fetchAllRates()
          rates    <- rateService.findRates()
          divisors <- rateService.findDivisors(rates)
       } yield {
@@ -70,7 +76,11 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
    }
 
    def showEnterRates() = Action { implicit request =>
-      Ok(views.html.rates.enter(rateService.findCurrencies()))
+      if(featureToggles.isEnabled(FeatureToggle.EnterRate))
+         Ok(views.html.rates.enter(rateService.findCurrencies()))
+      else
+         Ok(views.html.rates.enter(rateService.findCurrencies()))
+            .flashing("messageWarning"->"Rate entering disabled")
    }
 
    def enterRate = Action.async { implicit request =>
@@ -84,18 +94,22 @@ extends AbstractController(cc) with I18nSupport with RateHelper with WithLogger 
             }
          }, rateEntry => {
             logger.debug("Entering new rate")
-            val rate = rateEntry.copy(source=Some(RateSource.Manual))
-
-            rate.convertInverseAndConvert()
-                .map( rate :: _ )
-                .map( _.toSet )
-                .map( _.map( _.save() ) )
-                .map( Future.sequence(_) )
-                .flatten
-                .map{ _ =>
-                   Redirect(routes.RateController.showEnterRates())
-                      .flashing("messageSuccess"->"Rate entered")
-                }
+            if(featureToggles.isEnabled(FeatureToggle.EnterRate)) {
+               val rate = rateEntry.copy(source=Some(RateSource.Manual))
+               rate.convertInverseAndConvert()
+                   .map( rate :: _ )
+                   .map( _.toSet )
+                   .map( _.map( _.save() ) )
+                   .map( Future.sequence(_) )
+                   .flatten
+                   .map{ _ =>
+                      Redirect(routes.RateController.showEnterRates())
+                         .flashing("messageSuccess"->"Rate entered")
+                   }
+             } else
+               Future.successful(
+                  Redirect(routes.RateController.showEnterRates())
+                     .flashing("messageError"->"Rate entering disabled"))
          }
       )
    }

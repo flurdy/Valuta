@@ -46,7 +46,7 @@ trait RateService extends WithLogger {
               }.flatten
               .map ( _.pair.divisor )
               .toSet
-              .toList              
+              .toList
               .sortWith( _.entryName > _.entryName )
      }
 
@@ -77,7 +77,14 @@ trait RateService extends WithLogger {
 
       def saveRates(rates: List[CurrencyRate]): Future[List[CurrencyRate]] =
          Future.sequence{
-            rates.map ( _.save() )
+            rates.map { rate =>
+               rate.sourcedFrom match {
+                  case Some(SourcedFrom.FromCache) =>
+                   Future.successful(rate)
+                  case _ =>
+                   rate.save()
+               }
+             }
          }
 
       def convertRates(rates: List[CurrencyRate]): Future[List[CurrencyRate]] =

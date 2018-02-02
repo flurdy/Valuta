@@ -4,7 +4,6 @@
 
 * Includes normal (FIAT) currencies
 * Includes crypto currencies
-* Plan to include currency holding
 
 
 ## Technology
@@ -58,24 +57,7 @@
 
 ## Security
 
-### Warning
-
-* Basic security
-* Medium risk
-* Use at your own risk
-
-#### Data at risk if hacked
-* You email address
-* Your hashed password
-* Which exchanges you use
-* Your crypto currency holdings numbers
-
-### Security applied
-
-* TLS 1.2 http traffic
-* Hashed passwords
-* Open source publicly available code
-* Read only APIs
+* Low risk
 
 ## Contribute to Valuta
 

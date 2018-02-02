@@ -49,9 +49,10 @@ trait ApiProvider extends WithLogger {
          .fold[Future[Option[CurrencyRate]]]{
             Future.successful(None)
          }{ pairSource =>
+            logger.debug(s"Looking up rate ${pair} at ${pairSource.url}")
             connector.findRate(pairSource.url, pair)
                .map{ rate =>
-                  Some( CurrencyRate( pair, LocalDateTime.now, rate, Some(pairSource.source) ) )
+                  Some( CurrencyRate( pair, LocalDateTime.now, rate, Some(pairSource.source), Some(SourcedFrom.FromAPI) ) )
                }.recover {
                   case e =>
                      logger.error(s"Unabled to find rate for ${pairSource.url}",e)

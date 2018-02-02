@@ -13,7 +13,7 @@ import Currency._
 import repositories._
 
 
-case class RatePair(dividen: Currency, divisor: Currency){
+case class RatePair(dividen: Currency, divisor: Currency) extends WithLogger {
 
    def inverse = RatePair(divisor, dividen)
 
@@ -36,7 +36,8 @@ case class RatePair(dividen: Currency, divisor: Currency){
             Future.successful(Some(rateFound))
          case Some(rateFound) if isFromThisHour(rateFound.date) =>
             Future.successful(Some(rateFound))
-         case _ => lookupRate()
+         case _ =>
+            lookupRate()
       }
 
    def findRate()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
@@ -46,12 +47,14 @@ case class RatePair(dividen: Currency, divisor: Currency){
 
 
 case class CurrencyRate(pair: RatePair, date: LocalDateTime,
-                        rate: BigDecimal, source: Option[RateSource] = None) extends WithLogger {
+                        rate: BigDecimal, source: Option[RateSource] = None, sourcedFrom: Option[SourcedFrom] = None ) extends WithLogger {
 
    val epochSecond = date.toEpochSecond(ZoneOffset.UTC)
 
-   def save()(implicit ec: ExecutionContext, rateWriteRepository: RateWriteRepository): Future[CurrencyRate] =
+   def save()(implicit ec: ExecutionContext, rateWriteRepository: RateWriteRepository): Future[CurrencyRate] = {
+      logger.debug(s"saving ${this.sourcedFrom}")
       rateWriteRepository.saveCurrencyRate(this)
+   }
 
    def inverse =
       if(pair.dividen.isDivisor)
@@ -137,17 +140,19 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
 
       ratesToConvert map { rates =>
          rates.map {
-            case CurrencyRate( RatePair(convertDividen, convertDivisor), _, convertRate, _) =>
+            case CurrencyRate( RatePair(convertDividen, convertDivisor), _, convertRate, _, _) =>
                if (convertDividen == pair.divisor) {
                   val newRate = convertRate * rate
                   this.copy( pair = RatePair(pair.dividen, convertDivisor),
                              rate = newRate,
-                             source = Some(RateSource.Calculated) )
+                             source = Some(RateSource.Calculated),
+                             sourcedFrom = Some(SourcedFrom.FromCalculated) )
                } else if (convertDivisor == pair.divisor) {
                   val newRate = rate / convertRate
                   this.copy( pair = RatePair(pair.dividen, convertDividen),
                              rate = newRate,
-                             source = Some(RateSource.Calculated) )
+                             source = Some(RateSource.Calculated),
+                             sourcedFrom = Some(SourcedFrom.FromCalculated) )
                } else {
                   throw new IllegalStateException(s"Oh dear, unexpted rate: $convertDividen / $convertDivisor")
                }

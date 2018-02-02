@@ -1,6 +1,9 @@
 package models
 
 import com.google.inject.ImplementedBy
+import enumeratum._
+import enumeratum.values._
+import enumeratum.EnumEntry._
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 
@@ -147,3 +150,23 @@ trait ApiProviderConfiguration extends WithLogger {
 
 @Singleton
 class DefaultApiProviderConfiguration @Inject() (val appConfig: ApplicationConfiguration) extends ApiProviderConfiguration
+
+
+sealed abstract class FeatureToggle extends EnumEntry with Lowercase
+
+case object FeatureToggle extends PlayEnum[FeatureToggle]{
+   val values = findValues
+   case object EnterRate extends FeatureToggle
+}
+
+@ImplementedBy(classOf[DefaultFeatureToggles])
+trait FeatureToggles {
+
+   def appConfig: ApplicationConfiguration
+
+   def isEnabled(feature: FeatureToggle) = appConfig.isEnabled(s"feature.${feature.entryName.toLowerCase}")
+   
+}
+
+@Singleton
+class DefaultFeatureToggles @Inject() (val appConfig: ApplicationConfiguration) extends FeatureToggles

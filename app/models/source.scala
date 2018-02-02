@@ -32,3 +32,12 @@ case object RateSource extends PlayEnum[RateSource]{
 }
 
 case class RatePairSource(source: RateSource, pair: RatePair, url: String)
+
+sealed abstract class SourcedFrom extends EnumEntry with Lowercase
+
+case object SourcedFrom extends PlayEnum[SourcedFrom]{
+   val values = findValues
+   case object FromAPI        extends SourcedFrom
+   case object FromCalculated extends SourcedFrom
+   case object FromCache      extends SourcedFrom
+}

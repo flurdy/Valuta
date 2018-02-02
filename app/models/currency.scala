@@ -70,6 +70,9 @@ case object Currency extends PlayEnum[Currency] {
    case object EUR  extends Currency(description = "Euros",
                                      currencyType = FiatCurrency,
                                      isDivisor = true)
+   case object NOK  extends Currency(description = "Norwegian Kroner",
+                                     currencyType = FiatCurrency,
+                                     isDivisor = true)
 
 }
 
