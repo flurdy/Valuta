@@ -4,7 +4,7 @@ import com.google.inject.ImplementedBy
 import enumeratum._
 import enumeratum.values._
 import enumeratum.EnumEntry._
-import java.net.URL
+import java.net.URI
 import util.Try
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
@@ -66,11 +66,10 @@ class DefaultApplicationConfiguration @Inject() (val configuration: Configuratio
 @ImplementedBy(classOf[DefaultDatabaseConfiguration])
 trait DatabaseConfiguration extends ApplicationConfiguration {
 
-   def redisUrl: Option[URL] =
+   def redisUrl: Option[URI] =
       findString("redis.url").flatMap { urlFound =>
-         logger.error("REDIS URL FOUND: " +urlFound)
          Try {
-            new URL(urlFound)
+            new URI(urlFound)
          }.toOption
       }
 
