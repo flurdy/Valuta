@@ -68,6 +68,7 @@ trait DatabaseConfiguration extends ApplicationConfiguration {
 
    def redisUrl: Option[URL] =
       findString("redis.url").flatMap { urlFound =>
+         logger.error("REDIS URL FOUND: " +urlFound)
          Try {
             new URL(urlFound)
          }.toOption
