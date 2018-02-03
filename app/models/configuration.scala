@@ -74,12 +74,7 @@ trait DatabaseConfiguration extends ApplicationConfiguration {
       }
 
    def redisHost: String =
-      redisUrl.map{ url =>
-                  Option(url.getRawUserInfo)
-                        .fold(url.getHost){ userInfo =>
-                        s"${userInfo}@${url.getHost}"
-                     }
-               }
+      redisUrl.map( _.getHost )
                .orElse( findString("redis.host") )
                .getOrElse( throw new IllegalStateException("No redis host configured"))
 
@@ -88,6 +83,24 @@ trait DatabaseConfiguration extends ApplicationConfiguration {
                .orElse( findInt("redis.port") )
                .getOrElse( throw new IllegalStateException("No redis port configured"))
 
+   private def redisUrlAuth(uri: URI): Option[(String,String)] =
+      Option(uri.getUserInfo)
+         .flatMap{ userInfo =>
+            userInfo.split(":").toList match {
+               case user :: pw :: _ => Some(user,pw)
+               case _ => None
+            }
+         }
+
+   def redisUser: Option[String] =
+      redisUrl.fold{
+            findString("redis.user")
+         }( redisUrlAuth(_).map(_._1) )
+
+   def redisPassword: Option[String] =
+      redisUrl.fold{
+            findString("redis.password")
+         }( redisUrlAuth(_).map(_._2) )
 }
 
 

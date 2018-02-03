@@ -29,9 +29,12 @@ extends RedisProvider with WithLogger {
       logger.error("####### REDIS URL" + databaseConfig.redisUrl)
       logger.error("####### REDIS HOST" + databaseConfig.redisHost)
       logger.error("####### REDIS PORT" + databaseConfig.redisPort.toInt )
+      logger.error("####### REDIS USER" + databaseConfig.redisUser )
+      logger.error("####### REDIS PASSWORD" + databaseConfig.redisPassword )
       new RedisClient(
          host = databaseConfig.redisHost,
-         port = databaseConfig.redisPort.toInt )
+         port = databaseConfig.redisPort.toInt,
+         password = databaseConfig.redisPassword )
    }
 
 }
