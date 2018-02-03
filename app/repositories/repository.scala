@@ -23,19 +23,11 @@ class DefaultRedisProvider @Inject()
 (val databaseConfig: DatabaseConfiguration)(implicit akkaSystem: ActorSystem)
 extends RedisProvider with WithLogger {
 
-   // logger.info(s"Connecting Redis client to: ${databaseConfig.redisHost}:${databaseConfig.redisPort}")
-
-   lazy val client = {
-      logger.error("####### REDIS URL" + databaseConfig.redisUrl)
-      logger.error("####### REDIS HOST" + databaseConfig.redisHost)
-      logger.error("####### REDIS PORT" + databaseConfig.redisPort.toInt )
-      logger.error("####### REDIS USER" + databaseConfig.redisUser )
-      logger.error("####### REDIS PASSWORD" + databaseConfig.redisPassword )
+   lazy val client =
       new RedisClient(
          host = databaseConfig.redisHost,
          port = databaseConfig.redisPort.toInt,
          password = databaseConfig.redisPassword )
-   }
 
 }
 
