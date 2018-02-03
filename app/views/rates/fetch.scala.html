@@ -2,60 +2,14 @@
 
 @import helper._
 
-@nautical("Fetch currency pair rate") {
-   <h4>Fetch currency pair rate</h4>
+@nautical(messagesProvider.messages("fetch.title")) {
+   <h4>@messagesProvider.messages("fetch.description")</h4>
 
    <div class="well">
       @form(action=routes.RateController.fetchAllRates()){
          @helper.CSRF.formField
-         <button type="submit" class="btn btn-warning">fetch all rates</button>         
+         <button type="submit" class="btn btn-warning">@messagesProvider.messages("fetch.fetch")</button>
       }
    </div>
-
-@**
-
-   <table class="table">
-      <thead>
-         <tr>
-            <th rowspan="2">Dividen Currency</th>
-            <th colspan="@currencies.divisors.size">Divisor Currency</th>
-         </tr>
-         <tr>
-            @for(divisor <- currencies.divisors){
-               <th>@divisor</th>
-            }
-         </tr>
-      </thead>
-      <tbody>
-         @for(currency <- currencies.cryptoCurrencies){
-            <tr>
-               <td>@currency</td>
-               @for(divisor <- currencies.divisors){
-                  @form(action=routes.RateController.fetchRate(currency.entryName,divisor.entryName)){
-                     @helper.CSRF.formField
-                     <td>
-                        <button type="submit" class="btn btn-warning">fetch</button>
-                     </td>
-                  }
-               }
-            </tr>
-         }
-         @for(currency <- currencies.fiatCurrencies){
-            <tr>
-               <td>@currency</td>
-               @for(divisor <- currencies.divisors){
-                  @form(action=routes.RateController.fetchRate(currency.entryName,divisor.entryName)){
-                     @helper.CSRF.formField
-                     <td>
-                        <button type="submit" class="btn btn-warning">fetch</button>
-                     </td>
-                  }
-               }
-            </tr>
-         }
-      </tbody>
-   </table>
-
-**@
 
 }

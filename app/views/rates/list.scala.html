@@ -24,8 +24,8 @@
    <table class="table table-striped">
       <thead>
          <tr>
-            <th rowspan="2" colspan="1">Currency</th>
-            <th colspan="@divisors.length">Rate</th>
+            <th rowspan="2" colspan="1">@messagesProvider.messages("list.currency")</th>
+            <th colspan="@divisors.length">@messagesProvider.messages("list.rate")</th>
          </tr>
          <tr>
             @for(divisor <- divisors){
@@ -45,7 +45,7 @@
 
    @lastUpdate.map{ date =>
       <div class="awell small pull-right">
-         <p>Last update: @date</p>
+         <p>@messagesProvider.messages("list.last.update"): @date</p>
       </div>
    }
 

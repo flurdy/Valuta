@@ -39,19 +39,10 @@
 
             <ul class="nav nav-tabs">
                <li role="presentation">
-                  <a href="@routes.HomeController.index">Home</a>
-               </li>
-               @** <li role="presentation">
-                  <a href="@routes.RateController.list">List</a>
+                  <a href="@routes.HomeController.index">@messagesProvider.messages("nav.home")</a>
                </li>
                <li role="presentation">
-                  <a href="@routes.RateController.showFetchRates">Fetch</a>
-               </li>
-               <li role="presentation">
-                  <a href="@routes.RateController.showEnterRates">Enter</a>
-               </li> **@
-               <li role="presentation">
-                  <a href="@routes.HomeController.about">About</a>
+                  <a href="@routes.HomeController.about">@messagesProvider.messages("nav.about")</a>
                </li>
             </ul>
         </div>

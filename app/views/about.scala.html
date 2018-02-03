@@ -1,19 +1,19 @@
 @()(implicit messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
 
 
-@nautical("about Valuta") {
+@nautical(messagesProvider.messages("about.title")) {
 
    <div class="well">
-      <h4>A currency rates lookup service</h4>
+      <h4>@messagesProvider.messages("about.description.title")</h4>
       <ul>
-         <li>Includes normal (FIAT) currencies</li>
-         <li>Includes crypto currencies</li>
-         <li><s><em><a href="http://code.flurdy.com/projects/tulips">Include currency holding</a></em></s></li>
+         <li>@messagesProvider.messages("about.description.1")</li>
+         <li>@messagesProvider.messages("about.description.2")</li>
+         <li><s><em><a href="http://code.flurdy.com/projects/tulips">@messagesProvider.messages("about.description.3")</a></em></s></li>
       </ul>
    </div>
 
    <div class="well">
-      <h4>Technology</h4>
+      <h4>@messagesProvider.messages("about.technology")</h4>
       <ul>
          <li><a href="http://getbootstrap.com">Bootstrap</a></li>
          <li><a href="https://playframework.com">Play Framework</a></li>
@@ -30,7 +30,7 @@
    </div>
 
    <div class="well">
-      <h4>Rate sources</h4>
+      <h4>@messagesProvider.messages("about.sources")</h4>
       <ul>
          <li>
             <a href="https://cryptowat.ch">Cryptowatch</a>
@@ -50,51 +50,24 @@
       </ul>
    </div>
 
-   @**
    <div class="well">
-      <h4>Security</h4>
-      <h5>Warning</h5>
+      <h4>@messagesProvider.messages("about.contribute")</h4>
       <ul>
-         <li>Basic security</li>
-         <li>Medium risk</li>
-         <li>Use at your own risk</li>
-      </ul>
-      <h5>Data at risk if hacked</h5>
-      <ul>
-         <li>You email address</li>
-         <li>Your hashed password</li>
-         <li>Which exchanges you use</li>
-         <li>Your crypto currency holdings numbers</li>
-      </ul>
-      <h5>Security applied</h5>
-      <ul>
-         <li>TLS 1.2 http traffic</li>
-         <li>Hashed passwords</li>
-         <li>Open source publicly available code</li>
-         <li>Read only APIs</li>
-      </ul>
-
-   </div>
-   **@
-
-   <div class="well">
-      <h4>Contribute to Valuta</h4>
-      <ul>
-         <li>Report bugs: <a href="https://github.com/flurdy/valuta/issues">github.com/flurdy/valuta/issues</a></li>
-         <li>Fix bugs: <a href="https://github.com/flurdy/valuta/pulls">github.com/flurdy/valuta/pulls</a></li>
+         <li>@messagesProvider.messages("about.contribute.bugs.report"): <a href="https://github.com/flurdy/valuta/issues">github.com/flurdy/valuta/issues</a></li>
+         <li>@messagesProvider.messages("about.contribute.bugs.fix"): <a href="https://github.com/flurdy/valuta/pulls">github.com/flurdy/valuta/pulls</a></li>
       </ul>
    </div>
 
    <div class="well">
-      <h4>Warning</h4>
+      <h4>@messagesProvider.messages("about.warning")</h4>
       <ul>
-         <li>Rates may be out of date</li>
-         <li>Rates may be wrong</li>
+         <li>@messagesProvider.messages("about.warning.1")</li>
+         <li>@messagesProvider.messages("about.warning.2")</li>
       </ul>
    </div>
 
    <div class="well">
-      <h4>License</h4>
+      <h4>@messagesProvider.messages("about.license")</h4>
       <ul>
          <li>Apache License 2.0</li>
       </ul>
@@ -102,14 +75,14 @@
    </div>
 
    <div class="well">
-      <h4>People</h4>
+      <h4>@messagesProvider.messages("about.people")</h4>
       <ul>
-         <li>Creator: Ivar Abrahamsen (<a href="https://twitter.com/flurdy">@@flurdy</a>)</li>
+         <li>@messagesProvider.messages("about.people.creator"): Ivar Abrahamsen (<a href="https://twitter.com/flurdy">@@flurdy</a>)</li>
       </ul>
    </div>
 
    <div class="well">
-      <h4>More information</h4>
+      <h4>@messagesProvider.messages("about.more.information")</h4>
       <ul>
          <li><a href="https://github.com/flurdy/valuta">github.com/flurdy/valuta</a></li>
          <li><a href="https://code.flurdy.com/project/Valuta">code.flurdy.com/project/Valuta</a></li>
@@ -118,16 +91,16 @@
    </div>
 
    <div class="well">
-      <h4>Contact</h4>
+      <h4>@messagesProvider.messages("about.contact")</h4>
       <ul>
          <li><a href="https://flurdy.com/contact">flurdy.com/contact</a></li>
       </ul>
    </div>
 
    <div class="well">
-      <h4>Sponsor</h4>
+      <h4>@messagesProvider.messages("about.sponsor")</h4>
 
-      <p><a href="https://flurdy.com/contact">Please contact</a></p>
+      <p><a href="https://flurdy.com/contact">@messagesProvider.messages("about.sponsor.contact")</a></p>
    </div>
 
 

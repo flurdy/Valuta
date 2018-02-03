@@ -2,13 +2,13 @@
 
 @import helper._
 
-@nautical("Enter currency pair rate") {
-   <h4>Enter currency rate</h4>
+@nautical(messagesProvider.messages("enter.title")) {
+   <h4>@messagesProvider.messages("enter.description")</h4>
 
    @form(action=routes.RateController.enterRate, 'class -> "form-horizontal"){
       @helper.CSRF.formField
       <div class="form-group">
-         <label class="col-sm-2 control-label">Dividen currency</label>
+         <label class="col-sm-2 control-label">@messagesProvider.messages("enter.dividen")</label>
          <div class="col-sm-5">
             <select multiple class="form-control" name="ratePair.dividen">
                @for(currency <- currencies.cryptoCurrencies){
@@ -23,7 +23,7 @@
          </div>
       </div>
       <div class="form-group">
-         <label class="col-sm-2 control-label">Divisor currency</label>
+         <label class="col-sm-2 control-label">@messagesProvider.messages("enter.divisor")</label>
          <div class="col-sm-5">
             <select multiple class="form-control" name="ratePair.divisor">
                @for(currency <- currencies.divisors){
@@ -37,7 +37,7 @@
          </div>
       </div>
       <div class="form-group">
-         <label for="inputRate" class="col-sm-2 control-label">Rate</label>
+         <label for="inputRate" class="col-sm-2 control-label">@messagesProvider.messages("enter.rate")</label>
          <div class="col-sm-5">
             <input type="number" name="rate" class="form-control" id="inputRate"
                   placeholder="123.456" step='0.0000001' required />
@@ -45,7 +45,7 @@
       </div>
       <div class="form-group">
          <div class="col-sm-offset-2 col-sm-10">
-            <button type="submit" class="btn btn-success">enter rate</button>
+            <button type="submit" class="btn btn-success">@messagesProvider.messages("enter.rate.enter")</button>
          </div>
       </div>
    }
