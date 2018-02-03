@@ -66,7 +66,7 @@ class DefaultApplicationConfiguration @Inject() (val configuration: Configuratio
 @ImplementedBy(classOf[DefaultDatabaseConfiguration])
 trait DatabaseConfiguration extends ApplicationConfiguration {
 
-   private def redisUrl: Option[URL] =
+   def redisUrl: Option[URL] =
       findString("redis.url").flatMap { urlFound =>
          Try {
             new URL(urlFound)

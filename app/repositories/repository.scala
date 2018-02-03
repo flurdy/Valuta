@@ -25,6 +25,10 @@ extends RedisProvider with WithLogger {
 
    logger.info(s"Connecting Redis client to: ${databaseConfig.redisHost}:${databaseConfig.redisPort}")
 
+   logger.error("####### REDIS URL" + databaseConfig.redisUrl)
+   logger.error("####### REDIS HOST" + databaseConfig.redisHost)
+   logger.error("####### REDIS PORT" + databaseConfig.redisPort.toInt )
+
    lazy val client = new RedisClient(port = databaseConfig.redisPort.toInt )
 
 }
