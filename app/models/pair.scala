@@ -24,17 +24,12 @@ case class RatePair(dividen: Currency, divisor: Currency) extends WithLogger {
          Future.successful(None)
       }( _.findRate(this) )
 
-   private def isFromToday(date: LocalDateTime) = date.toLocalDate.isAfter(LocalDate.now.minusDays(1))
-
-   private def isFromThisHour(date: LocalDateTime) =
-      date.isAfter(LocalDateTime.now.truncatedTo(ChronoUnit.HOURS))
-
    def fetchRate()(implicit ec: ExecutionContext, apiProviderLookup: ApiProviderLookup,
             rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
       findRate().flatMap {
-         case Some(rateFound) if isFiatPair && isFromToday(rateFound.date) =>
+         case Some(rateFound) if isFiatPair && rateFound.isFromToday =>
             Future.successful(Some(rateFound))
-         case Some(rateFound) if isFromThisHour(rateFound.date) =>
+         case Some(rateFound) if rateFound.isFromThisHour =>
             Future.successful(Some(rateFound))
          case _ =>
             lookupRate()
@@ -43,6 +38,10 @@ case class RatePair(dividen: Currency, divisor: Currency) extends WithLogger {
    def findRate()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
       rateRepository.findCurrencyRate(this)
 
+   def isCachedAlready()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Boolean] =
+      findRate().map { rate =>
+         rate.fold(false)( _.isRecentEnough )
+      }
 }
 
 
@@ -50,6 +49,12 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
                         rate: BigDecimal, source: Option[RateSource] = None, sourcedFrom: Option[SourcedFrom] = None ) extends WithLogger {
 
    val epochSecond = date.toEpochSecond(ZoneOffset.UTC)
+
+   def isFromToday = date.toLocalDate.isAfter(LocalDate.now.minusDays(1))
+
+   def isFromThisHour = date.isAfter(LocalDateTime.now.truncatedTo(ChronoUnit.HOURS))
+
+   def isFromThisMinute = date.isAfter(LocalDateTime.now.truncatedTo(ChronoUnit.MINUTES))
 
    def save()(implicit ec: ExecutionContext, rateWriteRepository: RateWriteRepository): Future[CurrencyRate] = {
       logger.debug(s"saving ${this.sourcedFrom}")
@@ -159,6 +164,11 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
          }
       }
    }
+
+   def isCachedAlready()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Boolean] =
+      pair.isCachedAlready()
+
+   def isRecentEnough = (pair.isFiatPair && isFromToday) || isFromThisHour
 
 }
 

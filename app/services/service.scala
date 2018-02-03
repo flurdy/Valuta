@@ -92,24 +92,35 @@ trait RateService extends WithLogger {
             rates.map ( _.convertInverseAndConvert() )
          }.map( _.flatten )
 
+      def notCached(rates: List[CurrencyRate]): Future[List[CurrencyRate]] =
+         Future.sequence{
+            rates.map{ rate =>
+               rate.isCachedAlready().map( (_, rate) )
+            }
+         }.map{ rates =>
+            rates.filter( !_._1)
+                 .map(_._2)
+         }
+
       val fiatSourcePairs   = findPairsWithSource(Currency.FiatCurrencies.toList)
       val cryptoSourcePairs = findPairsWithSource(Currency.CryptoCurrencies.toList)
       for{
          fiatRates        <- findRates(fiatSourcePairs)
-         savedFiatRates   <- saveRates(fiatRates)
+         newFiats         <- notCached(fiatRates)
+         savedFiatRates   <- saveRates(newFiats)
          cryptoRates      <- findRates(cryptoSourcePairs)
-         savedCryptoRates <- saveRates(cryptoRates)
+         newCryptos       <- notCached(cryptoRates)
+         savedCryptoRates <- saveRates(newCryptos)
          savedSourceRates =  savedFiatRates union savedCryptoRates
          pairsSaved       =  savedSourceRates.map ( _.pair ).toSet
          ratesConverted   <- convertRates( savedSourceRates )
-         // _ = ratesConverted.map( r => logger.debug(s"converted pair ${r.pair}") )
          filteredConverts =  ratesConverted.filter( rate => !pairsSaved.contains(rate.pair) )
-         // _ = filteredConverts.map( r => logger.debug(s"filtered pair ${r.pair}") )
-         savedConverted   <- saveRates(filteredConverts)
+         newConverts      <- notCached(filteredConverts)
+         savedConverted   <- saveRates(newConverts)
          _ = logger.info(
               s"Saved ${savedFiatRates.size} fiat rates, "
             + s"${savedCryptoRates.size} crypto rates, "
-            + s"${ratesConverted.size} unfiltered rates, "
+            + s"${newConverts.size} uncached calculated rates, "
             + s"${savedConverted.size} converted rates")
       } yield ()
    }
