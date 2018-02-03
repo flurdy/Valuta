@@ -8,7 +8,7 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.12.3"
 
 // Not for release
-resolvers += "local-artifactory" at "http://localhost:8181/artifactory/maven-mirror/"
+// resolvers += "local-artifactory" at "http://localhost:8181/artifactory/maven-mirror/"
 
 resolvers += "flurdy-maven" at "http://dl.bintray.com/content/flurdy/maven"
 
