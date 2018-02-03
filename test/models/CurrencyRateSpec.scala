@@ -42,7 +42,7 @@ with TableDrivenPropertyChecks {
          ("dividend", "divisor", "canInvert"),
          (USD,  GBP, true),
          (BTC, USD, true),
-         (USDT, BTC, true),
+         // (ADA, BTC, true),
          (ETH, BTC, false),
          (XRP, BTC, false)
       )
@@ -170,7 +170,8 @@ with TableDrivenPropertyChecks {
                   targetPair,
                   date = now,
                   targetDecimal,
-                  source = Some(RateSource.Calculated)
+                  source = Some(RateSource.Calculated),
+                  sourcedFrom = Some(SourcedFrom.FromCalculated)
                )
 
             if( sourceDivisor == interDivisor ) {

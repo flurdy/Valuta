@@ -4,6 +4,8 @@ import com.google.inject.ImplementedBy
 import enumeratum._
 import enumeratum.values._
 import enumeratum.EnumEntry._
+import java.net.URL
+import util.Try
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 
@@ -64,9 +66,22 @@ class DefaultApplicationConfiguration @Inject() (val configuration: Configuratio
 @ImplementedBy(classOf[DefaultDatabaseConfiguration])
 trait DatabaseConfiguration extends ApplicationConfiguration {
 
-   def redisHost: String = findString("redis.host").getOrElse("localhost")
+   private def redisUrl: Option[URL] =
+      findString("redis.url").flatMap { urlFound =>
+         Try {
+            new URL(urlFound)
+         }.toOption
+      }
 
-   def redisPort: Int = findInt("redis.port").getOrElse(6379)
+   def redisHost: String =
+      redisUrl.map( _.getHost )
+               .orElse( findString("redis.host") )
+               .getOrElse("localhost")
+
+   def redisPort: Int =
+      redisUrl.map( _.getPort )
+               .orElse( findInt("redis.port") )
+               .getOrElse(6379)
 
 }
 
@@ -165,7 +180,7 @@ trait FeatureToggles {
    def appConfig: ApplicationConfiguration
 
    def isEnabled(feature: FeatureToggle) = appConfig.isEnabled(s"feature.${feature.entryName.toLowerCase}")
-   
+
 }
 
 @Singleton
