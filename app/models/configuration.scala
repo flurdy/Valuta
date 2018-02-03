@@ -81,12 +81,12 @@ trait DatabaseConfiguration extends ApplicationConfiguration {
                      }
                }
                .orElse( findString("redis.host") )
-               .getOrElse("localhost")
+               .getOrElse( throw new IllegalStateException("No redis host configured"))
 
    def redisPort: Int =
       redisUrl.map( _.getPort )
                .orElse( findInt("redis.port") )
-               .getOrElse(6379)
+               .getOrElse( throw new IllegalStateException("No redis port configured"))
 
 }
 
