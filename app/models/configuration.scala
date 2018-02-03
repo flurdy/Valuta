@@ -74,7 +74,12 @@ trait DatabaseConfiguration extends ApplicationConfiguration {
       }
 
    def redisHost: String =
-      redisUrl.map( _.getHost )
+      redisUrl.map{ url =>
+                  Option(url.getUserInfo)
+                        .fold(url.getHost){ userInfo =>
+                        s"${userInfo}@${url.getHost}"
+                     }
+               }
                .orElse( findString("redis.host") )
                .getOrElse("localhost")
 
