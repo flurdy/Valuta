@@ -29,3 +29,5 @@ libraryDependencies ++= {
       "ai.grakn" % "redis-mock" % "0.1.3" % Test
    )
 }
+
+herokuAppName in Compile := "valuta-staging"
