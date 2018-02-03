@@ -75,7 +75,7 @@ trait DatabaseConfiguration extends ApplicationConfiguration {
 
    def redisHost: String =
       redisUrl.map{ url =>
-                  Option(url.getUserInfo)
+                  Option(url.getRawUserInfo)
                         .fold(url.getHost){ userInfo =>
                         s"${userInfo}@${url.getHost}"
                      }
