@@ -1,6 +1,7 @@
 package models
 
-import java.time.LocalDateTime
+import java.time.{LocalDate, LocalDateTime}
+import java.time.temporal.ChronoUnit
 import org.mockito.Mockito._
 import org.mockito.ArgumentMatchers.{eq => eqTo, _}
 import org.scalatest._
@@ -26,6 +27,16 @@ with TableDrivenPropertyChecks {
       val date = LocalDateTime.now
       val source = None
       val defaultRate = "12.34"
+   }
+
+   trait CachedSetup {
+      val cryptoRate = CurrencyRate(RatePair(Currency.BTC, Currency.USD), LocalDateTime.now, BigDecimal("1.2"), None, None)
+      val fiatRate = CurrencyRate(RatePair(Currency.GBP, Currency.USD), LocalDateTime.now, BigDecimal("1.2"), None, None)
+      val now      = LocalDateTime.now
+      val today    = now.toLocalDate
+      val backThen = LocalDateTime.of(2014, 4, 15, 21, 47)
+      val thatDay  = backThen.toLocalDate
+      // implicit val rateRepository = mock[RateReadRepository]
    }
 
    val rateScales =
@@ -79,6 +90,7 @@ with TableDrivenPropertyChecks {
          ("12345000", "12,345,000"),
          ("123450000", "123,450,000")
       )
+
    val convertRates =
       Table(
          ("sourceDividen", "sourceDivisor",
@@ -89,7 +101,6 @@ with TableDrivenPropertyChecks {
          (ETH, BTC, ETH, USD, BTC, USD, "0.1", "1000", "1,000", "10000" ),
          (XRP, USD, XRP, BTC, BTC, USD, "0.005", "0.0000005", "0.0000005", "10000" )
       )
-
 
    "inverse" should {
       "inverse rate with correct scale" when given {
@@ -200,6 +211,48 @@ with TableDrivenPropertyChecks {
                verify(rateRepositoryMock).findCurrencyRate(interPair)
             }
          }
+      }
+   }
+
+   "isRecentEnough" when {
+      "fiatCurrency and today as last rate date" in new CachedSetup {
+         val rate = fiatRate.copy(date = today.atStartOfDay)
+         rate.isRecentEnough(now) mustBe true
+      }
+
+      // "cryptoCurrency and this hour as last rate date" in new CachedSetup {
+      //    val rate = cryptoRate.copy(date = backThen.minusMinutes(35))
+      //    rate.isRecentEnough(backThen) mustBe true
+      // }
+
+      "cryptoCurrency and same quarter hour as last rate date" in new CachedSetup {
+         val rate = cryptoRate.copy(date = backThen.withMinute(10))
+         rate.isRecentEnough(backThen.withMinute(12)) mustBe true
+      }
+
+      "fiatCurrency and last week as last rate date" in new CachedSetup {
+         val rate = fiatRate.copy(date = now.minusWeeks(1))
+         rate.isRecentEnough(now) mustBe false
+      }
+
+      "fiatCurrency and yesterday as last rate date" in new CachedSetup {
+         val rate = fiatRate.copy(date = now.minusDays(1))
+         rate.isRecentEnough(now) mustBe false
+      }
+
+      "cryptoCurrency and earlier same day as last rate date" in new CachedSetup {
+         val rate = cryptoRate.copy(date = backThen.withHour(4))
+         rate.isRecentEnough(backThen.withHour(14)) mustBe false
+      }
+
+      "cryptoCurrency and earlier same hour as last rate date" in new CachedSetup {
+         val rate = cryptoRate.copy(date = backThen.withMinute(10))
+         rate.isRecentEnough(backThen.withMinute(50)) mustBe false
+      }
+
+      "cryptoCurrency and less than quarter an hour but different quarter hour as last rate date" in new CachedSetup {
+         val rate = cryptoRate.copy(date = backThen.withMinute(10))
+         rate.isRecentEnough(backThen.withMinute(20)) mustBe false
       }
    }
 }

@@ -27,9 +27,9 @@ case class RatePair(dividen: Currency, divisor: Currency) extends WithLogger {
    def fetchRate()(implicit ec: ExecutionContext, apiProviderLookup: ApiProviderLookup,
             rateRepository: RateReadRepository): Future[Option[CurrencyRate]] =
       findRate().flatMap {
-         case Some(rateFound) if isFiatPair && rateFound.isFromToday =>
+         case Some(rateFound) if isFiatPair && rateFound.isFromToday() =>
             Future.successful(Some(rateFound))
-         case Some(rateFound) if rateFound.isFromThisHour =>
+         case Some(rateFound) if rateFound.isFromThisHour() =>
             Future.successful(Some(rateFound))
          case _ =>
             lookupRate()
@@ -40,7 +40,7 @@ case class RatePair(dividen: Currency, divisor: Currency) extends WithLogger {
 
    def isCachedAlready()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Boolean] =
       findRate().map { rate =>
-         rate.fold(false)( _.isRecentEnough )
+         rate.fold(false)( _.isRecentEnough() )
       }
 }
 
@@ -50,9 +50,15 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
 
    val epochSecond = date.toEpochSecond(ZoneOffset.UTC)
 
-   def isFromToday = date.toLocalDate.isAfter(LocalDate.now.minusDays(1))
+   def isFromToday(now: LocalDate = LocalDate.now) = date.toLocalDate.isAfter(now.minusDays(1))
 
-   def isFromThisHour = date.isAfter(LocalDateTime.now.truncatedTo(ChronoUnit.HOURS))
+   def isFromThisHour(now: LocalDateTime = LocalDateTime.now) = date.isAfter(now.truncatedTo(ChronoUnit.HOURS))
+
+   def isFromThisQuarterHour(now: LocalDateTime = LocalDateTime.now) =
+      date.isAfter(
+         now.truncatedTo(ChronoUnit.HOURS)
+            .plusMinutes( 15 * (now.getMinute / 15 ))
+      )
 
    def isFromThisMinute = date.isAfter(LocalDateTime.now.truncatedTo(ChronoUnit.MINUTES))
 
@@ -168,8 +174,8 @@ case class CurrencyRate(pair: RatePair, date: LocalDateTime,
    def isCachedAlready()(implicit ec: ExecutionContext, rateRepository: RateReadRepository): Future[Boolean] =
       pair.isCachedAlready()
 
-   def isRecentEnough = (pair.isFiatPair && isFromToday) || isFromThisHour
-
+   def isRecentEnough(now: LocalDateTime = LocalDateTime.now) =
+      (pair.isFiatPair && isFromToday(now.toLocalDate)) || isFromThisQuarterHour(now)
 }
 
 case class CurrencyRates(dividen: Currency, rates: List[(LocalDateTime,CurrencyRate)])
