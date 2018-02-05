@@ -52,6 +52,7 @@
 
 * `git clone git://github.com/flurdy/valuta.git`
 * `heroku create myapp`
+* `heroku addons:create heroku-redis`
 * `git push heroku`
 
 

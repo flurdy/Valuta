@@ -25,8 +25,7 @@ libraryDependencies ++= {
       "com.github.kstyrc" % "embedded-redis" % "0.6" % Test,
       "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % Test,
       "com.flurdy" %% "scalasoup" % "0.1.0" % Test,
-      "org.mockito" % "mockito-core" % "2.8.9" % Test,
-      "ai.grakn" % "redis-mock" % "0.1.3" % Test
+      "org.mockito" % "mockito-core" % "2.8.9" % Test
    )
 }
 
