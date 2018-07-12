@@ -126,6 +126,8 @@ trait ApiProviderConfiguration extends WithLogger {
          throw new IllegalStateException(
             s"Configuration missing or disabled for provider.cryptowatch")
 
+   def fixerIoApiKey: Option[String] = appConfig.findString("provider.fixerio.apikey")
+
    private def toDividenProperty(dividen: Currency) = s"${dividen.entryName.toLowerCase}"
 
    private def toPairProperty(pair: RatePair) =

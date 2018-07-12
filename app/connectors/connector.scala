@@ -46,8 +46,12 @@ class DefaultCryptoWatchConnector @Inject() (val ws: WSClient) extends CryptoWat
 @ImplementedBy(classOf[DefaultFixerIoConnector])
 trait FixerIoConnector extends ApiConnector with WithLogger {
 
+   def configuration: ApiProviderConfiguration
+
+   def urlWithApi(url: String): String = configuration.fixerIoApiKey.map( key => url.replace("FIXER_API_KEY", key) ).getOrElse(url)
+
    override def findRate(url: String, pair: RatePair)(implicit ec: ExecutionContext): Future[BigDecimal] =
-      ws.url(url)
+      ws.url(urlWithApi(url))
         .withFollowRedirects(true)
         .withRequestTimeout(2000.millis)
         .get()
@@ -58,4 +62,5 @@ trait FixerIoConnector extends ApiConnector with WithLogger {
 }
 
 @Singleton
-class DefaultFixerIoConnector @Inject() (val ws: WSClient) extends FixerIoConnector
+class DefaultFixerIoConnector @Inject() (val ws: WSClient,
+   val configuration: ApiProviderConfiguration) extends FixerIoConnector

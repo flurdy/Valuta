@@ -1,4 +1,4 @@
-@(currency: Currency, dateRates: models.DateRates, rateDivisors: List[Currency], divisorsWithSources: List[Currency], divisorsPossible: List[Currency], sources: List[RateSource])(implicit request: RequestHeader, messagesProvider: play.api.i18n.MessagesProvider, flash: Flash)
+@(currency: Currency, dateRates: models.DateRates, rateDivisors: List[Currency], divisorsWithSources: List[Currency], divisorsPossible: List[Currency], sources: List[RateSource])(implicit request: RequestHeader, messagesProvider: play.api.i18n.MessagesProvider, flash: Flash, featureToggles: FeatureToggles)
 
 @import helper._
 
@@ -55,7 +55,7 @@
       </div>
    }
 
-   @if(!divisorsPossible.isEmpty){
+   @if(!divisorsPossible.isEmpty && featureToggles.isEnabled(FeatureToggle.EnterRate)){
       <div class="well">
          @form(action=routes.RateController.enterRate, 'class -> "form-horizontal"){
             @helper.CSRF.formField
